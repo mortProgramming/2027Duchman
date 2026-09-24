@@ -24,12 +24,14 @@ public class Pigeon2IMU implements IMUIntf {
     }
 
     public double getAngle() {
-        return imu.getAngle();
-        // return -imu.getYaw();
+        // Phoenix 6 v26 removed Pigeon2.getAngle(); it was -getYaw(), negated because
+        // getAngle() is cw+ while the Pigeon reports ccw+.
+        return -imu.getYaw().getValueAsDouble();
     }
 
     public double getRate() {
-        return imu.getRate();
+        // Likewise getRate() was -getAngularVelocityZWorld(), cw+ vs ccw+.
+        return -imu.getAngularVelocityZWorld().getValueAsDouble();
     }
 
     public double getAccelerationX() {

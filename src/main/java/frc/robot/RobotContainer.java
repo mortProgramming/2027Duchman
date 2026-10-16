@@ -1,5 +1,7 @@
 package frc.robot;
 
+import static frc.robot.Constants.DrivetrainConstants.AUTO_CREEP_SPEED_MPS;
+import static frc.robot.Constants.DrivetrainConstants.AUTO_DRIVE_SECONDS;
 import static frc.robot.Constants.DrivetrainConstants.MAX_SPEED_MPS;
 import static frc.robot.Constants.OperatorConstants.DRIVER_CONTROLLER_PORT;
 
@@ -10,7 +12,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
@@ -33,7 +34,7 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
  * the WPILib 2027 alpha replacement and does not exist on 2026, which is what this roboRIO runs.
  */
 public class RobotContainer {
-  public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+  private final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
   private final CommandXboxController driverController =
       new CommandXboxController(DRIVER_CONTROLLER_PORT);
@@ -47,6 +48,7 @@ public class RobotContainer {
   private final SwerveRequest.Idle idle = new SwerveRequest.Idle();
 
   public RobotContainer() {
+    // Left bumper held = robot-relative driving; released = field-relative.
     drivetrain.setDefaultCommand(
         new TeleopSwerve(
             drivetrain,
@@ -57,15 +59,20 @@ public class RobotContainer {
 
     configureBindings();
 
-    autoChooser.setDefaultOption("Do Nothing", new InstantCommand());
+    // EVERY option here must hold the drivetrain for the WHOLE autonomous period. An auto command
+    // that finishes early (an InstantCommand, or a sequence with no trailing hold) releases the
+    // drivetrain while the robot is still enabled, and CommandScheduler immediately re-schedules
+    // the default command — TeleopSwerve — which reads the live sticks. A hand resting on a
+    // joystick would then drive the robot during auto. That is why "Do Nothing" idles the
+    // drivetrain forever instead of being an InstantCommand.
+    autoChooser.setDefaultOption("Do Nothing", drivetrain.applyRequest(() -> idle));
     autoChooser.addOption("Drive Forward 5s", driveForwardAuto());
     SmartDashboard.putData("Auto Chooser", autoChooser);
   }
 
   private void configureBindings() {
-    // Hold to drive robot-relative; released, driving is field-relative. Consumed by TeleopSwerve.
-    // Right bumper rather than EVE's menu() button re-zeroes the heading, because back/start are
-    // taken by the SysId combos below and a bare start() binding would fire alongside them.
+    // Right bumper re-zeroes the field-centric heading. EVE uses menu() for this, but back/start
+    // are taken by the SysId combos below and a bare start() binding would fire alongside them.
     driverController.rightBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
     driverController.a().whileTrue(drivetrain.applyRequest(() -> brake));
@@ -93,14 +100,15 @@ public class RobotContainer {
     drivetrain.registerTelemetry(logger::telemeterize);
   }
 
-  /** Faces away from the alliance wall, creeps forward for 5 seconds, then holds. */
+  /** Faces away from the alliance wall, creeps forward, then holds the drivetrain for the rest of auto. */
   private Command driveForwardAuto() {
     SwerveRequest.RobotCentric forward = new SwerveRequest.RobotCentric();
     return Commands.sequence(
         drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
         drivetrain
-            .applyRequest(() -> forward.withVelocityX(0.5).withVelocityY(0).withRotationalRate(0))
-            .withTimeout(5.0),
+            .applyRequest(
+                () -> forward.withVelocityX(AUTO_CREEP_SPEED_MPS).withVelocityY(0).withRotationalRate(0))
+            .withTimeout(AUTO_DRIVE_SECONDS),
         drivetrain.applyRequest(() -> idle));
   }
 

@@ -53,6 +53,12 @@ public final class Constants {
     public static final double MAX_ANGULAR_RAD_PER_SEC =
         RotationsPerSecond.of(0.75).in(RadiansPerSecond);
 
+    /** Creep speed for the drive-forward auto, in m/s. Deliberately slow — this is a test robot. */
+    public static final double AUTO_CREEP_SPEED_MPS = 0.5;
+
+    /** How long the drive-forward auto creeps, in seconds. */
+    public static final double AUTO_DRIVE_SECONDS = 5.0;
+
     // TODO — UNRESOLVED HARDWARE CONFLICT, do not paper over this by picking one:
     // TunerConstants and the 2025 code disagree about this chassis.
     //   drive gear ratio   TunerConstants 8.143 (SDS MK4i L1)  vs  2025 code 5.357 (from tooth counts)

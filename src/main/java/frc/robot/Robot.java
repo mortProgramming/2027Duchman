@@ -52,14 +52,17 @@ public class Robot extends TimedRobot {
     public void autonomousPeriodic() {}
 
     @Override
-    public void autonomousExit() {}
-
-    @Override
-    public void teleopInit() {
+    public void autonomousExit() {
+        // Cancelled here rather than in teleopInit(): autonomousExit fires on leaving autonomous
+        // regardless of what follows, so an auto disabled mid-run cannot resume where it left off
+        // when the robot is re-enabled. Matches EVE.
         if (m_autonomousCommand != null) {
             CommandScheduler.getInstance().cancel(m_autonomousCommand);
         }
     }
+
+    @Override
+    public void teleopInit() {}
 
     @Override
     public void teleopPeriodic() {}

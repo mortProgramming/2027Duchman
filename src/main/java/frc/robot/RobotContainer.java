@@ -12,9 +12,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.CommandPS4Controller;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.commands.TeleopSwerve;
 import frc.robot.generated.TunerConstants;
@@ -26,18 +25,22 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
  * they are, instantiate them here the same way as {@link #drivetrain} and add their bindings in
  * {@link #configureBindings()}.
  *
- * <p>The drivetrain is built by {@link TunerConstants#createDrivetrain()} rather than constructed
- * directly, because Tuner X owns the per-module constants and generates that factory alongside
- * them.
+ * <p><b>The driver pad is a PlayStation controller, so this uses {@link CommandPS4Controller}.</b>
+ * This matters more than it looks. Read through CommandXboxController, a PlayStation pad reports
+ * axis 4 as the R2 trigger, and PlayStation triggers rest at -1 rather than 0 — so an untouched
+ * controller commanded full rotation continuously and the robot drove itself. Button indices shift
+ * too: Xbox back/start are 7/8, which on a PlayStation pad are the L2/R2 buttons. PS4 and PS5 pads
+ * share identical axis and button indices (only button 9's name differs, share vs create), so
+ * CommandPS5Controller is a drop-in rename if that reads better for a DualSense.
  *
- * <p>Auto chooser uses {@code SendableChooser} here, not EVE's {@code Selectable}: Selectable is
- * the WPILib 2027 alpha replacement and does not exist on 2026, which is what this roboRIO runs.
+ * <p>If the driver pad is ever swapped back to an Xbox controller, change the class here AND the
+ * button methods below — L1/R1/cross/circle are PlayStation names.
  */
 public class RobotContainer {
   private final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
-  private final CommandXboxController driverController =
-      new CommandXboxController(DRIVER_CONTROLLER_PORT);
+  private final CommandPS4Controller driverController =
+      new CommandPS4Controller(DRIVER_CONTROLLER_PORT);
 
   private final Telemetry logger = new Telemetry(MAX_SPEED_MPS);
   private final SendableChooser<Command> autoChooser = new SendableChooser<>();
@@ -48,14 +51,14 @@ public class RobotContainer {
   private final SwerveRequest.Idle idle = new SwerveRequest.Idle();
 
   public RobotContainer() {
-    // Left bumper held = robot-relative driving; released = field-relative.
+    // L1 held = robot-relative driving; released = field-relative.
     drivetrain.setDefaultCommand(
         new TeleopSwerve(
             drivetrain,
             () -> -driverController.getLeftY(),
             () -> -driverController.getLeftX(),
             () -> -driverController.getRightX(),
-            driverController.leftBumper()));
+            driverController.L1()));
 
     configureBindings();
 
@@ -71,13 +74,12 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-    // Right bumper re-zeroes the field-centric heading. EVE uses menu() for this, but back/start
-    // are taken by the SysId combos below and a bare start() binding would fire alongside them.
-    driverController.rightBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+    // R1 re-zeroes the field-centric heading.
+    driverController.R1().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
-    driverController.a().whileTrue(drivetrain.applyRequest(() -> brake));
+    driverController.cross().whileTrue(drivetrain.applyRequest(() -> brake));
     driverController
-        .b()
+        .circle()
         .whileTrue(
             drivetrain.applyRequest(
                 () ->
@@ -89,13 +91,11 @@ public class RobotContainer {
     RobotModeTriggers.disabled()
         .whileTrue(drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
-    // SysId characterization, two-button combos so they cannot be hit by accident. Worth running:
-    // a translation sweep measures this robot's real drive ratio, which is the open question in
-    // Constants. Each routine should be run exactly once per log.
-    driverController.back().and(driverController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-    driverController.back().and(driverController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-    driverController.start().and(driverController.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-    driverController.start().and(driverController.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+    // NO SysId bindings on the driver controller, deliberately. They drive the robot under their
+    // own power, and their two-button combos landed on L2/R2 once the pad was a PlayStation one.
+    // The reason they were here — measuring the drive gear ratio — is settled now that we have
+    // Jaden's measurements. If characterization is needed again, bind it on the operator
+    // controller, not this one.
 
     drivetrain.registerTelemetry(logger::telemeterize);
   }

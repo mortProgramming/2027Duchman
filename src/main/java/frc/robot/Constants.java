@@ -59,15 +59,15 @@ public final class Constants {
     /** How long the drive-forward auto creeps, in seconds. */
     public static final double AUTO_DRIVE_SECONDS = 5.0;
 
-    // TODO — UNRESOLVED HARDWARE CONFLICT, do not paper over this by picking one:
-    // TunerConstants and the 2025 code disagree about this chassis.
-    //   drive gear ratio   TunerConstants 8.143 (SDS MK4i L1)  vs  2025 code 5.357 (from tooth counts)
-    //   wheel diameter     TunerConstants 3.6 in               vs  2025 code 3.99 in
-    //   front-back         TunerConstants 27 in                vs  2025 code 23.75 in
-    //   left-right         TunerConstants 22.5 in              vs  2025 code 27.75 in
-    // The steer ratio (21.43) matches MK4i in both, so the modules are MK4i. A 52% drive-ratio
-    // error would make odometry and any speed-based auto badly wrong. Count teeth against the SDS
-    // build sheet and put a tape measure on the frame, then correct TunerConstants in Tuner X —
-    // not here. Teleop driving works regardless, because it is open-loop voltage.
+    // Drivetrain geometry is Jaden's measurements, captured in TunerConstants by Phoenix Tuner X:
+    // drive ratio 8.143 (SDS MK4i L1), steer 21.43, wheel radius 1.8 in, modules at +/-13.5 in
+    // front-back and +/-11.25 in left-right, free speed 3.41 m/s.
+    //
+    // These supersede the 2025 project's numbers (ratio 5.357, wheel 3.99 in, 23.75 x 27.75 in),
+    // which disagreed and are used nowhere in this project. Resolved 2026-10-19 in favour of the
+    // measured set.
+    //
+    // Change these in Tuner X and re-export. Editing TunerConstants by hand works until the next
+    // swerve-generator run silently reverts it.
   }
 }

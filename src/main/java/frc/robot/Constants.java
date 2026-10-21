@@ -4,6 +4,8 @@ import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
+
 import frc.robot.generated.TunerConstants;
 
 /**
@@ -26,8 +28,7 @@ public final class Constants {
     private OperatorConstants() {}
 
     public static final int DRIVER_CONTROLLER_PORT = 0;
-    // TODO: no operator controller is bound yet — this is a drivetrain-only build. Add
-    // OPERATOR_CONTROLLER_PORT = 1 when the elevator/algae/tiki-torch subsystems get ported over.
+    public static final int OPERATOR_CONTROLLER_PORT = 1;
 
     /** Fraction of stick travel treated as zero, applied once in TeleopSwerve. */
     public static final double DRIVE_DEADBAND = 0.1;
@@ -69,5 +70,187 @@ public final class Constants {
     //
     // Change these in Tuner X and re-export. Editing TunerConstants by hand works until the next
     // swerve-generator run silently reverts it.
+  }
+
+  /** Battery-voltage reference. Percent outputs are scaled by this and sent as setVoltage(). */
+  public static final double ROBOT_VOLTAGE = 12.0;
+
+  /**
+   * Elevator: Vortex on CAN 11, REV through-bore absolute encoder on DIO 0, two limit switches.
+   *
+   * <p>Ported verbatim from the Worlds code. Two things here look wrong and are deliberately NOT
+   * corrected, because the mechanism was tuned around them and the robot is mechanically unchanged:
+   * POS_KG is applied as a raw percent-output bias rather than through a feedforward, and
+   * UPPER_LIMIT_SWITCH_HEIGHT is negative while every setpoint is positive. Changing either would
+   * change how the elevator behaves on a robot that currently works.
+   */
+  public static final class ElevatorConstants {
+    private ElevatorConstants() {}
+
+    public static final int MOTOR_ID = 11;
+    public static final int ENCODER_DIO = 0;
+    public static final int UPPER_LIMIT_SWITCH_DIO = 2;
+    public static final int LOWER_LIMIT_SWITCH_DIO = 3;
+
+    public static final double POS_KP = 0.08;
+    public static final double POS_KI = 0.0;
+    public static final double POS_KD = 0.003;
+
+    /** Percent-output bias added to every elevator command. NOT a feedforward kG. */
+    public static final double POS_KG = -0.05;
+
+    public static final Constraints POS_CONSTRAINTS = new Constraints(80, 300);
+    public static final Constraints POS_TELEOP_CONSTRAINTS = new Constraints(87, 360);
+
+    /** Inches of carriage travel per encoder rotation. The 3 is the elevator stage count. */
+    public static final double ROTATIONS_TO_INCHES = 5.642 * 3;
+
+    /** Per-cycle jump that means the absolute encoder wrapped. Must stay below half a rotation. */
+    public static final double MAXIMUM_INCH_CHANGE = 5;
+
+    /** Seeds rotationsCompleted at boot. Bring-up value, re-derive if the mechanism is rebuilt. */
+    public static final double ELEVATOR_OFFSET = -23.11;
+
+    public static final double LOWER_LIMIT_SWITCH_HEIGHT = 0;
+    public static final double UPPER_LIMIT_SWITCH_HEIGHT = -69.4;
+
+    public static final double REST_HEIGHT = 5.6;
+    public static final double L1_HEIGHT = 0;
+    /** Floor pickup and "pop" were both literally 0 in the Worlds code. Kept as-is. */
+    public static final double FLOOR_HEIGHT = 0;
+    public static final double POP_HEIGHT = 0;
+    public static final double L2_HEIGHT = 27.6;
+    public static final double L3_HEIGHT = 43.6;
+    public static final double L4_HEIGHT = 68;
+    public static final double INTAKE_HEIGHT = 17.25;
+    public static final double LOW_ALGAE_HEIGHT = 4.4;
+    public static final double HIGH_ALGAE_HEIGHT = 22.3;
+    /** 71.5 is above L4 (68) and above the upper limit switch magnitude (69.4). As at Worlds. */
+    public static final double BARGE_HEIGHT = 71.5;
+  }
+
+  /**
+   * Algae arm: NEO 550 on CAN 13, absolute encoder on the SparkMax data port, geared 1:1 to the
+   * pivot. WRAP_UPPER and WRAP_LOWER are NOT soft limits — they bound the dead band used to unwrap
+   * the absolute encoder. This arm has no travel protection in software, exactly as at Worlds.
+   */
+  public static final class AlgaeArmConstants {
+    private AlgaeArmConstants() {}
+
+    public static final int MOTOR_ID = 13;
+
+    public static final double ROT_KP = 0.0065;
+    public static final double ROT_KI = 0.0;
+    public static final double ROT_KD = 0.0;
+    /** All four feedforward gains are zero, so the ArmFeedforward contributes nothing today. */
+    public static final double ROT_KS = 0.0;
+    public static final double ROT_KG = 0.0;
+    public static final double ROT_KV = 0.0;
+    public static final double ROT_KA = 0.0;
+    public static final Constraints ARM_ROT_CONSTRAINTS = new Constraints(200, 750);
+
+    public static final double OFFSET = -257;
+    public static final double WRAP_UPPER = -120;
+    public static final double WRAP_LOWER = -300;
+
+    public static final double REST = 95;
+    public static final double REEF_INTAKE = 45;
+    public static final double FLOOR_INTAKE = -27;
+    public static final double POP_INTAKE = 18;
+    public static final double BARGE_SCORE = 45;
+  }
+
+  /** Algae roller: NEO 550 on CAN 12. Percent output. REST_SPEED is a light hold, not zero. */
+  public static final class AlgaeRollerConstants {
+    private AlgaeRollerConstants() {}
+
+    public static final int MOTOR_ID = 12;
+
+    public static final double INTAKE_SPEED = -1;
+    public static final double OUTTAKE_SPEED = 0.8;
+    public static final double REST_SPEED = -0.05;
+  }
+
+  /**
+   * Tiki torch arm (coral end effector): NEO 550 on CAN 15, absolute encoder on the data port.
+   * Unlike the algae arm this one drives the motor with set(percent) rather than setVoltage(),
+   * preserved from Worlds. ROT_KG is the only non-zero arm feedforward gain in the project.
+   */
+  public static final class TikiTorchArmConstants {
+    private TikiTorchArmConstants() {}
+
+    public static final int MOTOR_ID = 15;
+
+    public static final double ROT_KP = 0.006;
+    public static final double ROT_KI = 0.001;
+    public static final double ROT_KD = 0.0;
+    public static final double ROT_KS = 0.0;
+    public static final double ROT_KG = -0.03;
+    public static final double ROT_KV = 0.0;
+    public static final double ROT_KA = 0.0;
+    public static final Constraints ARM_ROT_CONSTRAINTS = new Constraints(300, 1000);
+
+    public static final double OFFSET = 224;
+    public static final double WRAP_UPPER = 45;
+    public static final double WRAP_LOWER = 0;
+
+    public static final double REST = 59.3;
+    public static final double L4_SCORE = -65;
+    public static final double L3_SCORE = -60;
+    public static final double L2_SCORE = -60;
+    public static final double L1_SCORE = 35;
+    public static final double INTAKE = 35;
+    /** Clearance pose. Every composite endeffector move starts by going here. */
+    public static final double ALGAE_CLEAR = -89;
+  }
+
+  /** Tiki torch roller: NEO 550 on CAN 14. Percent output. */
+  public static final class TikiTorchRollerConstants {
+    private TikiTorchRollerConstants() {}
+
+    public static final int MOTOR_ID = 14;
+
+    public static final double INTAKE_SPEED = -1;
+    public static final double OUTTAKE_SPEED = 1;
+    public static final double REST_SPEED = -0.1;
+    /** Slower score used for L1 so the coral does not launch. */
+    public static final double L1_SPEED = 0.65;
+  }
+
+  /**
+   * Climber: pneumatic, not a motor. A double solenoid latches onto the cage for the Reefscape
+   * deep climb. CTRE PCM on CAN 32 — the Worlds source carries a "module type might be wrong"
+   * note, so this is the first thing to check if the pistons do not fire.
+   */
+  public static final class ClimberConstants {
+    private ClimberConstants() {}
+
+    public static final int PCM_CAN_ID = 32;
+    public static final int SOLENOID_UP = 7;
+    public static final int SOLENOID_DOWN = 6;
+  }
+
+  /** Lights: REV Blinkin on PWM 0. Values are Blinkin pattern codes, not brightness. */
+  public static final class LightsConstants {
+    private LightsConstants() {}
+
+    public static final int PWM_PORT = 0;
+
+    public static final double PINK = 0.57;
+    public static final double RED = 0.61;
+    public static final double ORANGE = 0.65;
+    public static final double GOLD = 0.67;
+    public static final double YELLOW = 0.69;
+    public static final double GREEN = 0.77;
+    public static final double DARK_BLUE = 0.85;
+    public static final double BLUE = 0.87;
+    public static final double PURPLE = 0.91;
+    public static final double WHITE = 0.93;
+    public static final double BLACK = 0.99;
+
+    /** Elevator heights that drive the idle colour. Were magic numbers inside TeleopLights. */
+    public static final double HEIGHT_YELLOW = 60;
+    public static final double HEIGHT_DARK_BLUE = 35;
+    public static final double HEIGHT_WHITE = 10;
   }
 }

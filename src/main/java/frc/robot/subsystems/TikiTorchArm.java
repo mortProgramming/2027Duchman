@@ -13,8 +13,11 @@ import static frc.robot.Constants.TikiTorchArmConstants.ROT_KV;
 import static frc.robot.Constants.TikiTorchArmConstants.WRAP_LOWER;
 import static frc.robot.Constants.TikiTorchArmConstants.WRAP_UPPER;
 
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.ProfiledPIDController;
@@ -41,6 +44,15 @@ public class TikiTorchArm extends SubsystemBase {
   private final ArmFeedforward feedforward = new ArmFeedforward(ROT_KS, ROT_KG, ROT_KV, ROT_KA);
 
   private double armSpeed = 0;
+
+  public TikiTorchArm() {
+    // The 2025 code reset every SPARK to safe defaults on each boot, inside its motor wrapper.
+    // Without it the controller keeps whatever is burned in flash, including the absolute encoder
+    // inverted flag and conversion factor, so readings differ from what the Worlds code saw.
+    SparkMaxConfig config = new SparkMaxConfig();
+    config.closedLoop.pid(0, 0, 0);
+    motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+  }
 
   @Override
   public void periodic() {

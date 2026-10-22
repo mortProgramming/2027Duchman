@@ -158,6 +158,15 @@ public final class Constants {
     public static final double FLOOR_INTAKE = -27;
     public static final double POP_INTAKE = 18;
     public static final double BARGE_SCORE = 45;
+
+    // Software travel limits. The Worlds code had NONE, which is how a sign error turned into an
+    // arm driving into a hard stop. Set generously outside the real setpoint range (-27 to 95).
+    // TODO verify against the physical stops before trusting these to protect the mechanism.
+    public static final double MIN_DEGREES = -40;
+    public static final double MAX_DEGREES = 110;
+
+    /** Open-loop speed for manual jogging during bring-up. */
+    public static final double JOG_SPEED = 0.25;
   }
 
   /** Algae roller: NEO 550 on CAN 12. Percent output. REST_SPEED is a light hold, not zero. */
@@ -202,6 +211,14 @@ public final class Constants {
     public static final double INTAKE = 35;
     /** Clearance pose. Every composite endeffector move starts by going here. */
     public static final double ALGAE_CLEAR = -89;
+
+    // Software travel limits, set outside the real setpoint range (-89 to 59.3).
+    // TODO verify against the physical stops before trusting these.
+    public static final double MIN_DEGREES = -100;
+    public static final double MAX_DEGREES = 75;
+
+    /** Open-loop speed for manual jogging during bring-up. */
+    public static final double JOG_SPEED = 0.25;
   }
 
   /** Tiki torch roller: NEO 550 on CAN 14. Percent output. */

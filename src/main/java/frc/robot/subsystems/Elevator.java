@@ -16,8 +16,8 @@ import static frc.robot.Constants.ElevatorConstants.UPPER_LIMIT_SWITCH_DIO;
 import static frc.robot.Constants.ElevatorConstants.UPPER_LIMIT_SWITCH_HEIGHT;
 import static frc.robot.Constants.ROBOT_VOLTAGE;
 
-import com.revrobotics.spark.SparkBase.PersistMode;
-import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.PersistMode;
+import com.revrobotics.ResetMode;
 import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.SparkLowLevel.MotorType;

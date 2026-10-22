@@ -4,6 +4,7 @@ import static frc.robot.Constants.DrivetrainConstants.AUTO_CREEP_SPEED_MPS;
 import static frc.robot.Constants.DrivetrainConstants.AUTO_DRIVE_SECONDS;
 import static frc.robot.Constants.DrivetrainConstants.MAX_SPEED_MPS;
 import static frc.robot.Constants.OperatorConstants.DRIVER_CONTROLLER_PORT;
+import static frc.robot.Constants.OperatorConstants.DRIVE_DEADBAND;
 import static frc.robot.Constants.OperatorConstants.OPERATOR_CONTROLLER_PORT;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
@@ -16,13 +17,13 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandPS4Controller;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 import frc.robot.commands.SetTikiTorchArm;
-import frc.robot.commands.SpeedTikiTorch;
+import frc.robot.commands.MoveTikiTorchArm;
 import frc.robot.commands.Climb;
 import frc.robot.commands.MoveAlgaeArm;
 import frc.robot.commands.SetEndeffector;
-import frc.robot.commands.SetTikiTorchArm;
 import frc.robot.commands.TeleopLights;
 import frc.robot.commands.TeleopSwerve;
 import frc.robot.commands.VelocityAlgaeRoller;
@@ -127,13 +128,29 @@ public class RobotContainer {
     drivetrain.registerTelemetry(logger::telemeterize);
   }
 
-  /** Operator layout preserved from the Worlds code, so nobody has to relearn it. */
+  /**
+   * Operator layout from the Worlds code, plus manual arm jogs for bring-up.
+   *
+   * <p>The jogs moved from the bumpers to the sticks so they coexist with the rollers instead of
+   * replacing them. Analog is also better for bring-up than a fixed 0.25: you can ease the arm
+   * toward a hard stop rather than committing to a speed.
+   */
   private void configureOperatorBindings() {
+    // Manual arm jogs on the sticks. Open loop, no PID, no travel limits.
+    //
+    // Bound as triggers on stick deflection rather than as default commands, so a jog INTERRUPTS a
+    // held pose. As a default command it could never run while SetEndeffector held the arms, and
+    // the sticks would feel dead exactly when you most want to take over.
+    new Trigger(() -> Math.abs(operatorController.getLeftY()) > DRIVE_DEADBAND)
+        .whileTrue(new MoveAlgaeArm(algaeArm, () -> -operatorController.getLeftY()));
+    new Trigger(() -> Math.abs(operatorController.getRightY()) > DRIVE_DEADBAND)
+        .whileTrue(new MoveTikiTorchArm(tikiTorchArm, () -> -operatorController.getRightY()));
+
     // Rollers. Triggers and bumpers, held.
-    // operatorController.rightTrigger(0.25).whileTrue(VelocityTikiTorchRoller.intake(tikiTorchRoller));
-    // operatorController.rightBumper().whileTrue(VelocityTikiTorchRoller.outtake(tikiTorchRoller));
-    // operatorController.leftTrigger(0.25).whileTrue(VelocityAlgaeRoller.outtake(algaeRoller));
-    // operatorController.leftBumper().whileTrue(VelocityAlgaeRoller.intake(algaeRoller));
+    operatorController.rightTrigger(0.25).whileTrue(VelocityTikiTorchRoller.intake(tikiTorchRoller));
+    operatorController.rightBumper().whileTrue(VelocityTikiTorchRoller.outtake(tikiTorchRoller));
+    operatorController.leftTrigger(0.25).whileTrue(VelocityAlgaeRoller.outtake(algaeRoller));
+    operatorController.leftBumper().whileTrue(VelocityAlgaeRoller.intake(algaeRoller));
 
     // Coral scoring poses on the D-pad.
     operatorController.povUp().onTrue(SetEndeffector.teleopL4(elevator, tikiTorchArm, algaeArm));
@@ -148,10 +165,6 @@ public class RobotContainer {
     operatorController.y().onTrue(SetEndeffector.barge(elevator, tikiTorchArm, algaeArm));
     operatorController.back().onTrue(SetEndeffector.lowAlgae(elevator, tikiTorchArm, algaeArm));
     operatorController.start().onTrue(SetEndeffector.highAlgae(elevator, tikiTorchArm, algaeArm));
-    operatorController.leftBumper().whileTrue(new SpeedTikiTorch(tikiTorchArm, 0.25));
-    operatorController.rightBumper().whileTrue(new SpeedTikiTorch(tikiTorchArm, -0.25));
-    operatorController.leftTrigger(0.25).whileTrue(new MoveAlgaeArm(algaeArm, 0.5));
-    operatorController.rightTrigger(0.25).whileTrue(new MoveAlgaeArm(algaeArm, -0.5));
   }
 
   /** Faces away from the wall, creeps forward, then holds the drivetrain for the rest of auto. */

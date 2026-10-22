@@ -13,8 +13,8 @@ import static frc.robot.Constants.TikiTorchArmConstants.ROT_KV;
 import static frc.robot.Constants.TikiTorchArmConstants.WRAP_LOWER;
 import static frc.robot.Constants.TikiTorchArmConstants.WRAP_UPPER;
 
-import com.revrobotics.spark.SparkBase.PersistMode;
-import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.PersistMode;
+import com.revrobotics.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
@@ -68,7 +68,9 @@ public class TikiTorchArm extends SubsystemBase {
 
   public void setArmPercent(double percent) {
     this.armSpeed =
-        -percent - feedforward.calculate(Math.toRadians(getDegrees()), getVelocityDegrees());
+        -percent
+            - feedforward.calculate(
+                Math.toRadians(getDegrees()), Math.toRadians(getVelocityDegrees()));
   }
 
   /** Arm angle in degrees. Note the negation before the offset — opposite sense to the algae arm. */

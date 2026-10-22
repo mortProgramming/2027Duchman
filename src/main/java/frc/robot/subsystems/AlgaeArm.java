@@ -14,8 +14,8 @@ import static frc.robot.Constants.AlgaeArmConstants.WRAP_LOWER;
 import static frc.robot.Constants.AlgaeArmConstants.WRAP_UPPER;
 import static frc.robot.Constants.ROBOT_VOLTAGE;
 
-import com.revrobotics.spark.SparkBase.PersistMode;
-import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.PersistMode;
+import com.revrobotics.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
@@ -77,7 +77,9 @@ public class AlgaeArm extends SubsystemBase {
   }
   public void setArmPercent(double percent) {
     this.armSpeed =
-        -percent - feedforward.calculate(Math.toRadians(getDegrees()), getVelocityDegrees());
+        -percent
+            - feedforward.calculate(
+                Math.toRadians(getDegrees()), Math.toRadians(getVelocityDegrees()));
   }
 
   /** Arm angle in degrees, with the absolute encoder unwrapped through the dead band. */

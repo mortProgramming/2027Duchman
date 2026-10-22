@@ -3,11 +3,14 @@ package frc.robot.commands;
 import static frc.robot.Constants.TikiTorchArmConstants.ALGAE_CLEAR;
 import static frc.robot.Constants.TikiTorchArmConstants.INTAKE;
 import static frc.robot.Constants.TikiTorchArmConstants.L1_SCORE;
+import static frc.robot.Constants.TikiTorchArmConstants.MAX_DEGREES;
+import static frc.robot.Constants.TikiTorchArmConstants.MIN_DEGREES;
 import static frc.robot.Constants.TikiTorchArmConstants.L2_SCORE;
 import static frc.robot.Constants.TikiTorchArmConstants.L3_SCORE;
 import static frc.robot.Constants.TikiTorchArmConstants.L4_SCORE;
 import static frc.robot.Constants.TikiTorchArmConstants.REST;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj2.command.Command;
 
 import frc.robot.subsystems.TikiTorchArm;
@@ -19,7 +22,9 @@ public class SetTikiTorchArm extends Command {
 
   public SetTikiTorchArm(TikiTorchArm tikiTorchArm, double setpoint) {
     this.tikiTorchArm = tikiTorchArm;
-    this.setpoint = setpoint;
+    // Clamped to the travel limits. See the note in SetAlgaeArm on why the target is clamped
+    // rather than the motor output.
+    this.setpoint = MathUtil.clamp(setpoint, MIN_DEGREES, MAX_DEGREES);
     addRequirements(tikiTorchArm);
   }
 

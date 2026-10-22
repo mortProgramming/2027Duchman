@@ -2,10 +2,13 @@ package frc.robot.commands;
 
 import static frc.robot.Constants.AlgaeArmConstants.BARGE_SCORE;
 import static frc.robot.Constants.AlgaeArmConstants.FLOOR_INTAKE;
+import static frc.robot.Constants.AlgaeArmConstants.MAX_DEGREES;
+import static frc.robot.Constants.AlgaeArmConstants.MIN_DEGREES;
 import static frc.robot.Constants.AlgaeArmConstants.POP_INTAKE;
 import static frc.robot.Constants.AlgaeArmConstants.REEF_INTAKE;
 import static frc.robot.Constants.AlgaeArmConstants.REST;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj2.command.Command;
 
 import frc.robot.subsystems.AlgaeArm;
@@ -22,7 +25,10 @@ public class SetAlgaeArm extends Command {
 
   public SetAlgaeArm(AlgaeArm algaeArm, double setpoint) {
     this.algaeArm = algaeArm;
-    this.setpoint = setpoint;
+    // Clamped to the travel limits so a bad setpoint cannot send the arm into a hard stop.
+    // Clamping the TARGET rather than the motor output is deliberate: it can never trap the arm,
+    // whereas an output limit with the sign guessed wrong could.
+    this.setpoint = MathUtil.clamp(setpoint, MIN_DEGREES, MAX_DEGREES);
     addRequirements(algaeArm);
   }
 

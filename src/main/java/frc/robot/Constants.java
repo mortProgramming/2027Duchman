@@ -127,6 +127,9 @@ public final class Constants {
     public static final double HIGH_ALGAE_HEIGHT = 22.3;
     /** 71.5 is above L4 (68) and above the upper limit switch magnitude (69.4). As at Worlds. */
     public static final double BARGE_HEIGHT = 71.5;
+
+    /** Open-loop speed for manual elevator jogging. The Worlds testing controller used 0.2. */
+    public static final double JOG_SPEED = 0.2;
   }
 
   /**
@@ -165,8 +168,6 @@ public final class Constants {
     public static final double MIN_DEGREES = -40;
     public static final double MAX_DEGREES = 110;
 
-    /** Open-loop speed for manual jogging during bring-up. */
-    public static final double JOG_SPEED = 0.25;
   }
 
   /** Algae roller: NEO 550 on CAN 12. Percent output. REST_SPEED is a light hold, not zero. */
@@ -217,8 +218,6 @@ public final class Constants {
     public static final double MIN_DEGREES = -100;
     public static final double MAX_DEGREES = 75;
 
-    /** Open-loop speed for manual jogging during bring-up. */
-    public static final double JOG_SPEED = 0.25;
   }
 
   /** Tiki torch roller: NEO 550 on CAN 14. Percent output. */

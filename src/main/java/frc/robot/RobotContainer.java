@@ -3,6 +3,7 @@ package frc.robot;
 import static frc.robot.Constants.DrivetrainConstants.AUTO_CREEP_SPEED_MPS;
 import static frc.robot.Constants.DrivetrainConstants.AUTO_DRIVE_SECONDS;
 import static frc.robot.Constants.DrivetrainConstants.MAX_SPEED_MPS;
+import static frc.robot.Constants.ElevatorConstants.JOG_SPEED;
 import static frc.robot.Constants.OperatorConstants.DRIVER_CONTROLLER_PORT;
 import static frc.robot.Constants.OperatorConstants.DRIVE_DEADBAND;
 import static frc.robot.Constants.OperatorConstants.OPERATOR_CONTROLLER_PORT;
@@ -22,8 +23,11 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.commands.SetTikiTorchArm;
 import frc.robot.commands.MoveTikiTorchArm;
 import frc.robot.commands.Climb;
+import frc.robot.commands.Elevate;
 import frc.robot.commands.MoveAlgaeArm;
-import frc.robot.commands.SetEndeffector;
+import frc.robot.commands.MoveElevator;
+import frc.robot.commands.SetAlgaeArm;
+import frc.robot.commands.SetTikiTorchArm;
 import frc.robot.commands.TeleopLights;
 import frc.robot.commands.TeleopSwerve;
 import frc.robot.commands.VelocityAlgaeRoller;
@@ -129,22 +133,30 @@ public class RobotContainer {
   }
 
   /**
-   * Operator layout from the Worlds code, plus manual arm jogs for bring-up.
+   * BRING-UP LAYOUT. One subsystem per control, nothing composite.
    *
-   * <p>The jogs moved from the bumpers to the sticks so they coexist with the rollers instead of
-   * replacing them. Analog is also better for bring-up than a fixed 0.25: you can ease the arm
-   * toward a hard stop rather than committing to a speed.
+   * <p>The SetEndeffector poses are deliberately unbound for now. They move three subsystems at
+   * once through a staged sequence, which is exactly what you do not want while working out
+   * whether an individual mechanism is wired and tuned correctly — a failure anywhere looks like a
+   * failure everywhere. SetEndeffector itself is untouched and still in the tree; restoring the
+   * competition layout is just re-adding the D-pad and face-button bindings.
+   *
+   * <p>Each mechanism gets both halves of the test: an open-loop jog to prove direction and
+   * wiring, and a closed-loop setpoint to prove the PID and the encoder together. Run the jog
+   * first — if the jog moves the wrong way, the setpoint will run away.
    */
   private void configureOperatorBindings() {
-    // Manual arm jogs on the sticks. Open loop, no PID, no travel limits.
-    //
-    // Bound as triggers on stick deflection rather than as default commands, so a jog INTERRUPTS a
-    // held pose. As a default command it could never run while SetEndeffector held the arms, and
-    // the sticks would feel dead exactly when you most want to take over.
+    // ---- Open loop: direction and wiring ----
+    // Arms on the sticks, analog so you can ease toward a hard stop. Bound as deflection triggers
+    // rather than default commands so a jog always takes over, whatever else is holding the arm.
     new Trigger(() -> Math.abs(operatorController.getLeftY()) > DRIVE_DEADBAND)
         .whileTrue(new MoveAlgaeArm(algaeArm, () -> -operatorController.getLeftY()));
     new Trigger(() -> Math.abs(operatorController.getRightY()) > DRIVE_DEADBAND)
         .whileTrue(new MoveTikiTorchArm(tikiTorchArm, () -> -operatorController.getRightY()));
+
+    // Elevator on the D-pad, fixed speed. No travel protection — watch the carriage.
+    operatorController.povUp().whileTrue(new MoveElevator(elevator, JOG_SPEED));
+    operatorController.povDown().whileTrue(new MoveElevator(elevator, -JOG_SPEED));
 
     // Rollers. Triggers and bumpers, held.
     operatorController.rightTrigger(0.25).whileTrue(VelocityTikiTorchRoller.intake(tikiTorchRoller));
@@ -152,19 +164,16 @@ public class RobotContainer {
     operatorController.leftTrigger(0.25).whileTrue(VelocityAlgaeRoller.outtake(algaeRoller));
     operatorController.leftBumper().whileTrue(VelocityAlgaeRoller.intake(algaeRoller));
 
-    // Coral scoring poses on the D-pad.
-    operatorController.povUp().onTrue(SetEndeffector.teleopL4(elevator, tikiTorchArm, algaeArm));
-    operatorController.povDown().onTrue(SetEndeffector.l3(elevator, tikiTorchArm, algaeArm));
-    operatorController.povLeft().onTrue(SetEndeffector.l2(elevator, tikiTorchArm, algaeArm));
-    operatorController.povRight().onTrue(SetEndeffector.rest(elevator, tikiTorchArm, algaeArm));
+    // ---- Closed loop: one subsystem at a time ----
+    // Each of these drives exactly one mechanism to one setpoint and holds it, so an overshoot or
+    // a runaway is attributable to that mechanism alone.
+    operatorController.a().whileTrue(Elevate.rest(elevator));
+    operatorController.b().whileTrue(Elevate.l2(elevator));
+    operatorController.x().whileTrue(SetAlgaeArm.rest(algaeArm));
+    operatorController.y().whileTrue(SetTikiTorchArm.algaeClear(tikiTorchArm));
 
-    // Face buttons and menu buttons.
-    operatorController.x().onTrue(SetEndeffector.l1(elevator, tikiTorchArm, algaeArm));
-    operatorController.a().onTrue(SetEndeffector.floor(elevator, tikiTorchArm, algaeArm));
-    operatorController.b().onTrue(SetEndeffector.intake(elevator, tikiTorchArm, algaeArm));
-    operatorController.y().onTrue(SetEndeffector.barge(elevator, tikiTorchArm, algaeArm));
-    operatorController.back().onTrue(SetEndeffector.lowAlgae(elevator, tikiTorchArm, algaeArm));
-    operatorController.start().onTrue(SetEndeffector.highAlgae(elevator, tikiTorchArm, algaeArm));
+    // whileTrue, not onTrue, on purpose: releasing the button drops the mechanism rather than
+    // leaving it holding a setpoint you may not want it chasing.
   }
 
   /** Faces away from the wall, creeps forward, then holds the drivetrain for the rest of auto. */

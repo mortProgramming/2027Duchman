@@ -17,8 +17,12 @@ import edu.wpi.first.wpilibj2.command.button.CommandPS4Controller;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 
+import frc.robot.commands.SetTikiTorchArm;
+import frc.robot.commands.SpeedTikiTorch;
 import frc.robot.commands.Climb;
+import frc.robot.commands.MoveAlgaeArm;
 import frc.robot.commands.SetEndeffector;
+import frc.robot.commands.SetTikiTorchArm;
 import frc.robot.commands.TeleopLights;
 import frc.robot.commands.TeleopSwerve;
 import frc.robot.commands.VelocityAlgaeRoller;
@@ -126,10 +130,10 @@ public class RobotContainer {
   /** Operator layout preserved from the Worlds code, so nobody has to relearn it. */
   private void configureOperatorBindings() {
     // Rollers. Triggers and bumpers, held.
-    operatorController.rightTrigger(0.25).whileTrue(VelocityTikiTorchRoller.intake(tikiTorchRoller));
-    operatorController.rightBumper().whileTrue(VelocityTikiTorchRoller.outtake(tikiTorchRoller));
-    operatorController.leftTrigger(0.25).whileTrue(VelocityAlgaeRoller.outtake(algaeRoller));
-    operatorController.leftBumper().whileTrue(VelocityAlgaeRoller.intake(algaeRoller));
+    // operatorController.rightTrigger(0.25).whileTrue(VelocityTikiTorchRoller.intake(tikiTorchRoller));
+    // operatorController.rightBumper().whileTrue(VelocityTikiTorchRoller.outtake(tikiTorchRoller));
+    // operatorController.leftTrigger(0.25).whileTrue(VelocityAlgaeRoller.outtake(algaeRoller));
+    // operatorController.leftBumper().whileTrue(VelocityAlgaeRoller.intake(algaeRoller));
 
     // Coral scoring poses on the D-pad.
     operatorController.povUp().onTrue(SetEndeffector.teleopL4(elevator, tikiTorchArm, algaeArm));
@@ -144,6 +148,10 @@ public class RobotContainer {
     operatorController.y().onTrue(SetEndeffector.barge(elevator, tikiTorchArm, algaeArm));
     operatorController.back().onTrue(SetEndeffector.lowAlgae(elevator, tikiTorchArm, algaeArm));
     operatorController.start().onTrue(SetEndeffector.highAlgae(elevator, tikiTorchArm, algaeArm));
+    operatorController.leftBumper().whileTrue(new SpeedTikiTorch(tikiTorchArm, 0.25));
+    operatorController.rightBumper().whileTrue(new SpeedTikiTorch(tikiTorchArm, -0.25));
+    operatorController.leftTrigger(0.25).whileTrue(new MoveAlgaeArm(algaeArm, 0.5));
+    operatorController.rightTrigger(0.25).whileTrue(new MoveAlgaeArm(algaeArm, -0.5));
   }
 
   /** Faces away from the wall, creeps forward, then holds the drivetrain for the rest of auto. */

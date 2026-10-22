@@ -60,6 +60,9 @@ public class AlgaeArm extends SubsystemBase {
    * Worlds. Note the feedforward is handed position in radians but velocity in degrees/sec — a
    * unit mismatch that is harmless only because KV is zero. Fix the units before tuning KV.
    */
+  public void setArmSpeed(double speed) {
+    this.armSpeed = speed;
+  }
   public void setArmPercent(double percent) {
     this.armSpeed =
         -percent - feedforward.calculate(Math.toRadians(getDegrees()), getVelocityDegrees());

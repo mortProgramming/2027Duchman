@@ -42,6 +42,7 @@ public class TikiTorchArm extends SubsystemBase {
 
   private double armSpeed = 0;
 
+
   @Override
   public void periodic() {
     // set(), not setVoltage() — matches Worlds. Not battery-compensated.
@@ -49,6 +50,9 @@ public class TikiTorchArm extends SubsystemBase {
 
     SmartDashboard.putNumber("TikiTorchArm/Degrees", getDegrees());
     SmartDashboard.putNumber("TikiTorchArm/VelocityDegPerSec", getVelocityDegrees());
+  }
+  public void setArmSpeed(double speed) {
+    this.armSpeed = speed;
   }
 
   public void setArmPercent(double percent) {

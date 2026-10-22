@@ -155,8 +155,12 @@ public class RobotContainer {
         .whileTrue(new MoveTikiTorchArm(tikiTorchArm, () -> -operatorController.getRightY()));
 
     // Elevator on the D-pad, fixed speed. No travel protection — watch the carriage.
-    operatorController.povUp().whileTrue(new MoveElevator(elevator, JOG_SPEED));
-    operatorController.povDown().whileTrue(new MoveElevator(elevator, -JOG_SPEED));
+    //
+    // Negative raises the carriage on this mechanism, confirmed on the robot. The sign lives here
+    // rather than inside MoveElevator or the subsystem on purpose: the closed-loop path through
+    // Elevate is already correct, so inverting any deeper would break what works.
+    operatorController.povUp().whileTrue(new MoveElevator(elevator, -JOG_SPEED));
+    operatorController.povDown().whileTrue(new MoveElevator(elevator, JOG_SPEED));
 
     // Rollers. Triggers and bumpers, held.
     operatorController.rightTrigger(0.25).whileTrue(VelocityTikiTorchRoller.intake(tikiTorchRoller));

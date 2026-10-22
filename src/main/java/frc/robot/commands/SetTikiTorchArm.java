@@ -31,7 +31,7 @@ public class SetTikiTorchArm extends Command {
   @Override
   public void execute() {
     tikiTorchArm.setArmPercent(
-        tikiTorchArm.getController().calculate(tikiTorchArm.getDegrees(), setpoint));
+        -tikiTorchArm.getController().calculate(tikiTorchArm.getDegrees(), setpoint));
   }
 
   @Override

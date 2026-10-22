@@ -16,7 +16,10 @@ import static frc.robot.Constants.ElevatorConstants.UPPER_LIMIT_SWITCH_DIO;
 import static frc.robot.Constants.ElevatorConstants.UPPER_LIMIT_SWITCH_HEIGHT;
 import static frc.robot.Constants.ROBOT_VOLTAGE;
 
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkFlex;
+import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 import edu.wpi.first.math.controller.ProfiledPIDController;
@@ -60,6 +63,13 @@ public class Elevator extends SubsystemBase {
   private double motorSpeed = 0;
   private double elevatorPosition = 0;
   private double rotationsCompleted = ELEVATOR_OFFSET / ROTATIONS_TO_INCHES;
+
+  public Elevator() {
+    // Matches the 2025 boot-time reset. See the note in AlgaeArm.
+    SparkFlexConfig config = new SparkFlexConfig();
+    config.closedLoop.pid(0, 0, 0);
+    motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+  }
 
   @Override
   public void periodic() {

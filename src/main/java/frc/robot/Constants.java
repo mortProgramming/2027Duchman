@@ -269,4 +269,33 @@ public final class Constants {
     public static final double HEIGHT_DARK_BLUE = 35;
     public static final double HEIGHT_WHITE = 10;
   }
+
+  /**
+   * Limelight 4, named "limelight-front" in its web UI. That name is the NetworkTables table
+   * name, so it must match exactly or every read silently returns a default.
+   *
+   * <p>Pose estimation uses MegaTag2, which needs the robot yaw fed to the camera every loop —
+   * see Vision.periodic(). MegaTag2 is far more stable than MegaTag1 when only one tag is in
+   * view, which is the common case on this field.
+   */
+  public static final class VisionConstants {
+    private VisionConstants() {}
+
+    public static final String CAMERA_NAME = "limelight-front";
+
+    /**
+     * Whether vision corrections are fed into the drivetrain pose estimator.
+     *
+     * <p>Starts FALSE deliberately. A miscalibrated camera injecting poses will make a drivetrain
+     * that currently works start fighting itself, and that is a miserable thing to debug mid
+     * session. Verify the numbers on the dashboard first, then turn this on.
+     */
+    public static final boolean USE_VISION_ODOMETRY = false;
+
+    /** Reject estimates further than this from the current odometry pose, in meters. */
+    public static final double MAX_POSE_JUMP_METERS = 1.0;
+
+    /** Ignore tags further away than this, in meters. Distant single tags are noisy. */
+    public static final double MAX_TAG_DISTANCE_METERS = 4.0;
+  }
 }

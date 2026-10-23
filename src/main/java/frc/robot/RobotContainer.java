@@ -20,14 +20,11 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
-import frc.robot.commands.SetTikiTorchArm;
 import frc.robot.commands.MoveTikiTorchArm;
 import frc.robot.commands.Climb;
-import frc.robot.commands.Elevate;
 import frc.robot.commands.MoveAlgaeArm;
 import frc.robot.commands.MoveElevator;
-import frc.robot.commands.SetAlgaeArm;
-import frc.robot.commands.SetTikiTorchArm;
+import frc.robot.commands.SetEndeffector;
 import frc.robot.commands.TeleopLights;
 import frc.robot.commands.TeleopSwerve;
 import frc.robot.commands.VelocityAlgaeRoller;
@@ -41,6 +38,7 @@ import frc.robot.subsystems.Elevator;
 import frc.robot.subsystems.Lights;
 import frc.robot.subsystems.TikiTorchArm;
 import frc.robot.subsystems.TikiTorchRoller;
+import frc.robot.subsystems.Vision;
 
 /**
  * Binds hardware to commands.
@@ -64,6 +62,7 @@ public class RobotContainer {
   private final TikiTorchRoller tikiTorchRoller = new TikiTorchRoller();
   private final Climber climber = new Climber();
   private final Lights lights = new Lights();
+  private final Vision vision = new Vision(drivetrain);
 
   private final CommandPS4Controller driverController =
       new CommandPS4Controller(DRIVER_CONTROLLER_PORT);
@@ -133,51 +132,47 @@ public class RobotContainer {
   }
 
   /**
-   * BRING-UP LAYOUT. One subsystem per control, nothing composite.
+   * COMPETITION LAYOUT. Matches the Worlds operator layout so nobody has to relearn it, with the
+   * manual jogs kept on controls the competition layout leaves free.
    *
-   * <p>The SetEndeffector poses are deliberately unbound for now. They move three subsystems at
-   * once through a staged sequence, which is exactly what you do not want while working out
-   * whether an individual mechanism is wired and tuned correctly — a failure anywhere looks like a
-   * failure everywhere. SetEndeffector itself is untouched and still in the tree; restoring the
-   * competition layout is just re-adding the D-pad and face-button bindings.
-   *
-   * <p>Each mechanism gets both halves of the test: an open-loop jog to prove direction and
-   * wiring, and a closed-loop setpoint to prove the PID and the encoder together. Run the jog
-   * first — if the jog moves the wrong way, the setpoint will run away.
+   * <p>Bring-up note: the per-subsystem closed-loop test bindings that used to sit on the face
+   * buttons are gone, because the face buttons are scoring poses again. Every mechanism was
+   * verified individually before this layout went back on. To test one subsystem in isolation
+   * again, jog it from the sticks or the stick-press buttons rather than un-binding the poses.
    */
   private void configureOperatorBindings() {
-    // ---- Open loop: direction and wiring ----
-    // Arms on the sticks, analog so you can ease toward a hard stop. Bound as deflection triggers
-    // rather than default commands so a jog always takes over, whatever else is holding the arm.
-    new Trigger(() -> Math.abs(operatorController.getLeftY()) > DRIVE_DEADBAND)
-        .whileTrue(new MoveAlgaeArm(algaeArm, () -> -operatorController.getLeftY()));
-    new Trigger(() -> Math.abs(operatorController.getRightY()) > DRIVE_DEADBAND)
-        .whileTrue(new MoveTikiTorchArm(tikiTorchArm, () -> -operatorController.getRightY()));
+    // ---- Scoring poses. Each moves elevator + both arms through the staged clearance sequence ----
+    operatorController.povUp().onTrue(SetEndeffector.teleopL4(elevator, tikiTorchArm, algaeArm));
+    operatorController.povDown().onTrue(SetEndeffector.l3(elevator, tikiTorchArm, algaeArm));
+    operatorController.povLeft().onTrue(SetEndeffector.l2(elevator, tikiTorchArm, algaeArm));
+    operatorController.povRight().onTrue(SetEndeffector.rest(elevator, tikiTorchArm, algaeArm));
 
-    // Elevator on the D-pad, fixed speed. No travel protection — watch the carriage.
-    //
-    // Negative raises the carriage on this mechanism, confirmed on the robot. The sign lives here
-    // rather than inside MoveElevator or the subsystem on purpose: the closed-loop path through
-    // Elevate is already correct, so inverting any deeper would break what works.
-    operatorController.povUp().whileTrue(new MoveElevator(elevator, -JOG_SPEED));
-    operatorController.povDown().whileTrue(new MoveElevator(elevator, JOG_SPEED));
+    operatorController.x().onTrue(SetEndeffector.l1(elevator, tikiTorchArm, algaeArm));
+    operatorController.a().onTrue(SetEndeffector.floor(elevator, tikiTorchArm, algaeArm));
+    operatorController.b().onTrue(SetEndeffector.intake(elevator, tikiTorchArm, algaeArm));
+    operatorController.y().onTrue(SetEndeffector.barge(elevator, tikiTorchArm, algaeArm));
+    operatorController.back().onTrue(SetEndeffector.lowAlgae(elevator, tikiTorchArm, algaeArm));
+    operatorController.start().onTrue(SetEndeffector.highAlgae(elevator, tikiTorchArm, algaeArm));
 
-    // Rollers. Triggers and bumpers, held.
+    // ---- Rollers. Triggers and bumpers, held ----
     operatorController.rightTrigger(0.25).whileTrue(VelocityTikiTorchRoller.intake(tikiTorchRoller));
     operatorController.rightBumper().whileTrue(VelocityTikiTorchRoller.outtake(tikiTorchRoller));
     operatorController.leftTrigger(0.25).whileTrue(VelocityAlgaeRoller.outtake(algaeRoller));
     operatorController.leftBumper().whileTrue(VelocityAlgaeRoller.intake(algaeRoller));
 
-    // ---- Closed loop: one subsystem at a time ----
-    // Each of these drives exactly one mechanism to one setpoint and holds it, so an overshoot or
-    // a runaway is attributable to that mechanism alone.
-    operatorController.a().whileTrue(Elevate.rest(elevator));
-    operatorController.b().whileTrue(Elevate.l2(elevator));
-    operatorController.x().whileTrue(SetAlgaeArm.rest(algaeArm));
-    operatorController.y().whileTrue(SetTikiTorchArm.algaeClear(tikiTorchArm));
+    // ---- Manual jogs, kept for recovery ----
+    // These are what gets a mispositioned mechanism back without a redeploy, so they stay bound in
+    // competition. They sit on controls the Worlds layout never used, so nothing is displaced.
+    // All three interrupt whatever pose is holding, which is the point.
+    new Trigger(() -> Math.abs(operatorController.getLeftY()) > DRIVE_DEADBAND)
+        .whileTrue(new MoveAlgaeArm(algaeArm, () -> -operatorController.getLeftY()));
+    new Trigger(() -> Math.abs(operatorController.getRightY()) > DRIVE_DEADBAND)
+        .whileTrue(new MoveTikiTorchArm(tikiTorchArm, () -> -operatorController.getRightY()));
 
-    // whileTrue, not onTrue, on purpose: releasing the button drops the mechanism rather than
-    // leaving it holding a setpoint you may not want it chasing.
+    // Elevator jog on the stick-press buttons, since the D-pad is scoring poses again. Negative
+    // raises the carriage, confirmed on the robot.
+    operatorController.rightStick().whileTrue(new MoveElevator(elevator, -JOG_SPEED));
+    operatorController.leftStick().whileTrue(new MoveElevator(elevator, JOG_SPEED));
   }
 
   /** Faces away from the wall, creeps forward, then holds the drivetrain for the rest of auto. */

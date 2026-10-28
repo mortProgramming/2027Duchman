@@ -271,9 +271,12 @@ public final class Constants {
   }
 
   /**
-   * Limelight 4, reachable at http://limelight-tigers.local:5801 — so its NetworkTables name is
-   * "limelight-tigers". The UI builds this as a fixed "limelight-" prefix, which supplies the
-   * dash, plus the lowercase suffix "tigers" typed into the hostname field.
+   * Limelight 4 at http://limelight-front.local:5801, static 10.0.11.11. Its NetworkTables name
+   * is "limelight-front". The UI builds that from a fixed "limelight-" prefix, which supplies the
+   * dash, plus the lowercase suffix "front" typed into the hostname field.
+   *
+   * <p>This camera came from team 222 and was still on their 10.2.22.x subnet, which is why it
+   * never appeared on the robot network. Reconfigured to team 11.
    *
    * <p>This string is the NetworkTables table name and must match the device EXACTLY. A mismatch
    * is silent: every read returns a default, with no error anywhere, so vision simply looks dead.
@@ -285,7 +288,7 @@ public final class Constants {
   public static final class VisionConstants {
     private VisionConstants() {}
 
-    public static final String CAMERA_NAME = "limelight-tigers";
+    public static final String CAMERA_NAME = "limelight-front";
 
     /**
      * Whether vision corrections are fed into the drivetrain pose estimator.

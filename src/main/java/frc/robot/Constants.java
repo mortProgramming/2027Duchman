@@ -271,8 +271,9 @@ public final class Constants {
   }
 
   /**
-   * Limelight, named "limelightfront" in its web UI. The UI will not accept a dash, so this is
-   * one word rather than the usual "limelight-front" styling.
+   * Limelight 4, reachable at http://limelight-tigers.local:5801 — so its NetworkTables name is
+   * "limelight-tigers". The UI builds this as a fixed "limelight-" prefix, which supplies the
+   * dash, plus the lowercase suffix "tigers" typed into the hostname field.
    *
    * <p>This string is the NetworkTables table name and must match the device EXACTLY. A mismatch
    * is silent: every read returns a default, with no error anywhere, so vision simply looks dead.
@@ -284,7 +285,7 @@ public final class Constants {
   public static final class VisionConstants {
     private VisionConstants() {}
 
-    public static final String CAMERA_NAME = "limelightfront";
+    public static final String CAMERA_NAME = "limelight-tigers";
 
     /**
      * Whether vision corrections are fed into the drivetrain pose estimator.

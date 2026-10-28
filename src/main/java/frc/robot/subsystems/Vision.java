@@ -23,7 +23,7 @@ import frc.robot.util.LimelightHelpers;
  * default. Everything here publishes to the dashboard regardless, so the camera can be verified
  * before it is trusted with odometry.
  *
- * <p>Depends on the camera being named exactly {@code limelight-front} in its web UI. That string
+ * <p>Depends on the camera being named exactly {@code limelightfront} in its web UI. That string
  * is the NetworkTables table name; get it wrong and every read returns a default with no error.
  */
 public class Vision extends SubsystemBase {

@@ -271,8 +271,11 @@ public final class Constants {
   }
 
   /**
-   * Limelight 4, named "limelight-front" in its web UI. That name is the NetworkTables table
-   * name, so it must match exactly or every read silently returns a default.
+   * Limelight, named "limelightfront" in its web UI. The UI will not accept a dash, so this is
+   * one word rather than the usual "limelight-front" styling.
+   *
+   * <p>This string is the NetworkTables table name and must match the device EXACTLY. A mismatch
+   * is silent: every read returns a default, with no error anywhere, so vision simply looks dead.
    *
    * <p>Pose estimation uses MegaTag2, which needs the robot yaw fed to the camera every loop —
    * see Vision.periodic(). MegaTag2 is far more stable than MegaTag1 when only one tag is in
@@ -281,7 +284,7 @@ public final class Constants {
   public static final class VisionConstants {
     private VisionConstants() {}
 
-    public static final String CAMERA_NAME = "limelight-front";
+    public static final String CAMERA_NAME = "limelightfront";
 
     /**
      * Whether vision corrections are fed into the drivetrain pose estimator.

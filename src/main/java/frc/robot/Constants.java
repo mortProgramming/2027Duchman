@@ -305,4 +305,38 @@ public final class Constants {
     /** Ignore tags further away than this, in meters. Distant single tags are noisy. */
     public static final double MAX_TAG_DISTANCE_METERS = 4.0;
   }
+
+  /**
+   * BLine-Lib autonomous path following. Point-to-point polyline planner, paths authored in the
+   * BLine Web editor and exported to src/main/deploy/autos/paths/<name>.json.
+   *
+   * <p>Chosen over PathPlanner for this robot and for EVE. BLine has a wpilib-2027 branch with
+   * Commands v2/v3 adapters, so the same library carries over to SystemCore rather than needing a
+   * second migration.
+   *
+   * <p>Every gain below is a STARTING VALUE from the BLine docs, not tuned for Dutchman. Tune on
+   * the robot before trusting an auto routine.
+   */
+  public static final class BLineConstants {
+    private BLineConstants() {}
+
+    /** Auto speed cap, m/s. Under the measured 3.41 m/s free speed to leave control headroom. */
+    public static final double MAX_VELOCITY_MPS = 3.0;
+
+    public static final double MAX_ACCELERATION_MPS2 = 3.0;
+    public static final double MAX_ANGULAR_VELOCITY_DEG_PER_SEC = 360.0;
+    public static final double MAX_ANGULAR_ACCELERATION_DEG_PER_SEC2 = 720.0;
+
+    /** How close counts as arrived. */
+    public static final double END_TRANSLATION_TOLERANCE_METERS = 0.05;
+    public static final double END_ROTATION_TOLERANCE_DEG = 2.0;
+
+    /** Radius at which the follower hands off to the next waypoint instead of stopping on it. */
+    public static final double INTERMEDIATE_HANDOFF_RADIUS_METERS = 0.3;
+
+    // ---- Follower gains. Starting values; tune on the robot. ----
+    public static final double TRANSLATION_KP = 5.0;
+    public static final double ROTATION_KP = 3.0;
+    public static final double CROSS_TRACK_KP = 2.0;
+  }
 }

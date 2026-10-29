@@ -1,5 +1,15 @@
 package frc.robot;
 
+import static frc.robot.Constants.BLineConstants.CROSS_TRACK_KP;
+import static frc.robot.Constants.BLineConstants.END_ROTATION_TOLERANCE_DEG;
+import static frc.robot.Constants.BLineConstants.END_TRANSLATION_TOLERANCE_METERS;
+import static frc.robot.Constants.BLineConstants.INTERMEDIATE_HANDOFF_RADIUS_METERS;
+import static frc.robot.Constants.BLineConstants.MAX_ACCELERATION_MPS2;
+import static frc.robot.Constants.BLineConstants.MAX_ANGULAR_ACCELERATION_DEG_PER_SEC2;
+import static frc.robot.Constants.BLineConstants.MAX_ANGULAR_VELOCITY_DEG_PER_SEC;
+import static frc.robot.Constants.BLineConstants.MAX_VELOCITY_MPS;
+import static frc.robot.Constants.BLineConstants.ROTATION_KP;
+import static frc.robot.Constants.BLineConstants.TRANSLATION_KP;
 import static frc.robot.Constants.DrivetrainConstants.AUTO_CREEP_SPEED_MPS;
 import static frc.robot.Constants.DrivetrainConstants.AUTO_DRIVE_SECONDS;
 import static frc.robot.Constants.DrivetrainConstants.MAX_SPEED_MPS;
@@ -10,6 +20,10 @@ import static frc.robot.Constants.OperatorConstants.OPERATOR_CONTROLLER_PORT;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import frc.robot.lib.BLine.FollowPath;
+import frc.robot.lib.BLine.Path;
+
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -71,6 +85,9 @@ public class RobotContainer {
 
   private final Telemetry logger = new Telemetry(MAX_SPEED_MPS);
   private final SendableChooser<Command> autoChooser = new SendableChooser<>();
+
+  /** BLine path follower. Built once and reused for every path-based auto. */
+  private final FollowPath.Builder pathFollower = buildPathFollower();
 
   /* Diagnostic requests, held rather than latched. */
   private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
@@ -173,6 +190,51 @@ public class RobotContainer {
     // raises the carriage, confirmed on the robot.
     operatorController.rightStick().whileTrue(new MoveElevator(elevator, -JOG_SPEED));
     operatorController.leftStick().whileTrue(new MoveElevator(elevator, JOG_SPEED));
+  }
+
+  /**
+   * Builds the BLine path follower, wired to the CTRE drivetrain.
+   *
+   * <p>BLine wants four plain accessors — pose, measured speeds, a speeds consumer, and a pose
+   * reset. CTRE exposes the first two on {@code getState()} and the last directly; the consumer
+   * is an {@code ApplyRobotSpeeds} request, which is the robot-relative entry point the follower
+   * expects.
+   *
+   * <p>{@code withDefaultShouldFlip()} mirrors paths for the red alliance using the Driver
+   * Station, so one authored path serves both sides.
+   */
+  private FollowPath.Builder buildPathFollower() {
+    Path.setDefaultGlobalConstraints(
+        new Path.DefaultGlobalConstraints(
+            MAX_VELOCITY_MPS,
+            MAX_ACCELERATION_MPS2,
+            MAX_ANGULAR_VELOCITY_DEG_PER_SEC,
+            MAX_ANGULAR_ACCELERATION_DEG_PER_SEC2,
+            END_TRANSLATION_TOLERANCE_METERS,
+            END_ROTATION_TOLERANCE_DEG,
+            INTERMEDIATE_HANDOFF_RADIUS_METERS));
+
+    SwerveRequest.ApplyRobotSpeeds autoDrive = new SwerveRequest.ApplyRobotSpeeds();
+
+    return new FollowPath.Builder(
+            drivetrain,
+            () -> drivetrain.getState().Pose,
+            () -> drivetrain.getState().Speeds,
+            speeds -> drivetrain.setControl(autoDrive.withSpeeds(speeds)),
+            new PIDController(TRANSLATION_KP, 0, 0),
+            new PIDController(ROTATION_KP, 0, 0),
+            new PIDController(CROSS_TRACK_KP, 0, 0))
+        .withDefaultShouldFlip()
+        .withPoseReset(drivetrain::resetPose);
+  }
+
+  /**
+   * Follows a path authored in the BLine Web editor.
+   *
+   * @param pathName file name without extension, from src/main/deploy/autos/paths/
+   */
+  public Command followPath(String pathName) {
+    return pathFollower.build(new Path(pathName));
   }
 
   /** Faces away from the wall, creeps forward, then holds the drivetrain for the rest of auto. */

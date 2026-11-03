@@ -1,6 +1,12 @@
 package frc.robot.subsystems;
 
+import static frc.robot.Constants.VisionConstants.CAMERA_FORWARD_METERS;
 import static frc.robot.Constants.VisionConstants.CAMERA_NAME;
+import static frc.robot.Constants.VisionConstants.CAMERA_PITCH_DEG;
+import static frc.robot.Constants.VisionConstants.CAMERA_RIGHT_METERS;
+import static frc.robot.Constants.VisionConstants.CAMERA_ROLL_DEG;
+import static frc.robot.Constants.VisionConstants.CAMERA_UP_METERS;
+import static frc.robot.Constants.VisionConstants.CAMERA_YAW_DEG;
 import static frc.robot.Constants.VisionConstants.MAX_POSE_JUMP_METERS;
 import static frc.robot.Constants.VisionConstants.MAX_TAG_DISTANCE_METERS;
 import static frc.robot.Constants.VisionConstants.USE_VISION_ODOMETRY;
@@ -34,6 +40,18 @@ public class Vision extends SubsystemBase {
 
   public Vision(CommandSwerveDrivetrain drivetrain) {
     this.drivetrain = drivetrain;
+
+    // Push the measured camera pose every boot, so git rather than the camera holds it.
+    // NetworkTables retains the value, so a Limelight that finishes booting after the robot code
+    // still receives it when it connects.
+    LimelightHelpers.setCameraPose_RobotSpace(
+        CAMERA_NAME,
+        CAMERA_FORWARD_METERS,
+        CAMERA_RIGHT_METERS,
+        CAMERA_UP_METERS,
+        CAMERA_ROLL_DEG,
+        CAMERA_PITCH_DEG,
+        CAMERA_YAW_DEG);
   }
 
   @Override

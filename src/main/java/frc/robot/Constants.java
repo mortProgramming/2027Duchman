@@ -304,6 +304,24 @@ public final class Constants {
 
     /** Ignore tags further away than this, in meters. Distant single tags are noisy. */
     public static final double MAX_TAG_DISTANCE_METERS = 4.0;
+
+    // ---- Camera pose relative to robot center, pushed to the Limelight on every boot ----
+    // Code is the source of truth, not the web UI: this camera has already come back from a loan
+    // with its settings changed once, and anything stored only on the camera is lost on a reset.
+    // Change these here. A value typed into the MegaTag fields in the web UI will be overwritten
+    // the next time the robot code starts.
+    //
+    // Measured 2026-11-03. Forward and right taken from the CAD low mount and confirmed by tape;
+    // height and pitch measured directly. The CAD also contains a stale "Limelight Ear" at 29 in
+    // that is not on the robot — do not use it.
+    // Note the CAD does not model the 10 degree tilt; every rotation in the assembly is axis-aligned.
+    public static final double CAMERA_FORWARD_METERS = 0.31; // 12.2 in ahead of center
+    public static final double CAMERA_RIGHT_METERS = 0.062; // 2.4 in right of center
+    public static final double CAMERA_UP_METERS = 0.229; // 9 in, floor to lens
+    public static final double CAMERA_ROLL_DEG = 0;
+    /** Tilted 10 degrees up from facing forward. If tag distance error grows with range, flip it. */
+    public static final double CAMERA_PITCH_DEG = 10;
+    public static final double CAMERA_YAW_DEG = 0;
   }
 
   /**

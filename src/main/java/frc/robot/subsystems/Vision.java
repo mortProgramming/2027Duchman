@@ -5,12 +5,15 @@ import static frc.robot.Constants.VisionConstants.CAMERA_NAME;
 import static frc.robot.Constants.VisionConstants.CAMERA_PITCH_DEG;
 import static frc.robot.Constants.VisionConstants.CAMERA_RIGHT_METERS;
 import static frc.robot.Constants.VisionConstants.CAMERA_ROLL_DEG;
+import static frc.robot.Constants.VisionConstants.CAMERA_STREAM_URL;
 import static frc.robot.Constants.VisionConstants.CAMERA_UP_METERS;
 import static frc.robot.Constants.VisionConstants.CAMERA_YAW_DEG;
 import static frc.robot.Constants.VisionConstants.MAX_POSE_JUMP_METERS;
 import static frc.robot.Constants.VisionConstants.MAX_TAG_DISTANCE_METERS;
 import static frc.robot.Constants.VisionConstants.USE_VISION_ODOMETRY;
 
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.HttpCamera;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -52,6 +55,10 @@ public class Vision extends SubsystemBase {
         CAMERA_ROLL_DEG,
         CAMERA_PITCH_DEG,
         CAMERA_YAW_DEG);
+
+    // Publishes /CameraPublisher/limelight-front so Elastic lists it under Camera Stream. Nothing
+    // runs through the rio: Elastic connects to the camera directly at this URL.
+    CameraServer.addCamera(new HttpCamera(CAMERA_NAME, CAMERA_STREAM_URL));
   }
 
   @Override

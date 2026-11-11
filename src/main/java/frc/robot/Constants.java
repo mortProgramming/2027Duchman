@@ -291,6 +291,17 @@ public final class Constants {
     public static final String CAMERA_NAME = "limelight-front";
 
     /**
+     * The Limelight's MJPEG video stream, registered with CameraServer so Elastic's Camera Stream
+     * widget can find it. The Limelight does not do this itself: it only publishes the URL as a
+     * plain string in SmartDashboard ({@code limelight-front_Stream}), which Elastic cannot play.
+     *
+     * <p>Static IP rather than {@code limelight-front.local}: mDNS is unreliable on Windows driver
+     * station laptops. The laptop opens this URL itself, so it must be on the robot network
+     * (radio), not just the rio's USB link — over USB the widget stays blank.
+     */
+    public static final String CAMERA_STREAM_URL = "http://10.0.11.11:5800";
+
+    /**
      * Whether vision corrections are fed into the drivetrain pose estimator.
      *
      * <p>Starts FALSE deliberately. A miscalibrated camera injecting poses will make a drivetrain

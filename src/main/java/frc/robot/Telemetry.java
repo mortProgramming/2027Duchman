@@ -20,6 +20,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 
+import frc.robot.util.HootLogStorage;
+
 public class Telemetry {
     private final double MaxSpeed;
 
@@ -30,7 +32,10 @@ public class Telemetry {
      */
     public Telemetry(double maxSpeed) {
         MaxSpeed = maxSpeed;
-        SignalLogger.start();
+        // Gated: with no USB stick this would log to the rio's internal flash and fill it.
+        if (HootLogStorage.canLog()) {
+            SignalLogger.start();
+        }
 
         /* Set up the module state Mechanism2d telemetry */
         for (int i = 0; i < 4; ++i) {

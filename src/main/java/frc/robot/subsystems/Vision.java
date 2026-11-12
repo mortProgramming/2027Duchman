@@ -10,10 +10,22 @@ import static frc.robot.Constants.VisionConstants.CAMERA_UP_METERS;
 import static frc.robot.Constants.VisionConstants.CAMERA_YAW_DEG;
 import static frc.robot.Constants.VisionConstants.MAX_POSE_JUMP_METERS;
 import static frc.robot.Constants.VisionConstants.MAX_TAG_DISTANCE_METERS;
+import static frc.robot.Constants.VisionConstants.MAX_YAW_RATE_DEG_PER_SEC;
 import static frc.robot.Constants.VisionConstants.USE_VISION_ODOMETRY;
+import static frc.robot.Constants.VisionConstants.VISION_HEADING_STD_DEV_RAD;
+import static frc.robot.Constants.VisionConstants.VISION_XY_STD_DEV_METERS;
+
+import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.HttpCamera;
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.networktables.DoubleArrayPublisher;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -25,12 +37,21 @@ import frc.robot.util.LimelightHelpers;
  * <p>Uses MegaTag2, which needs the robot yaw pushed to the camera every loop — that happens in
  * {@link #periodic()}. MegaTag2 uses the gyro to resolve the tag ambiguity that makes MegaTag1
  * jittery with a single tag in view, which is most of the time on this field. The cost is that
- * the yaw has to be correct: if the gyro is wrong, the pose is wrong, and it will look like a
- * camera problem.
+ * the yaw has to be correct <i>in field terms</i>: 0 degrees = facing the red alliance wall. The
+ * gyro reads 0 at boot whichever way the robot faces, so the driver must press R1 with the robot
+ * facing away from their own driver station before vision positions mean anything. If the
+ * heading is wrong, the pose is wrong, and it will look like a camera problem.
  *
- * <p>Feeding corrections into the drivetrain is gated behind {@code USE_VISION_ODOMETRY}, off by
- * default. Everything here publishes to the dashboard regardless, so the camera can be verified
- * before it is trusted with odometry.
+ * <p><b>Seeding.</b> Odometry starts at (0, 0) — the field corner — at boot. The jump guard below
+ * would reject every real estimate against that, so vision would silently never correct anything.
+ * Instead, the first trustworthy estimate after boot (or after R1 re-zeroes the heading) snaps the
+ * robot's position straight to it, and while disabled it keeps snapping, since the robot is not
+ * moving. Only once seeded and enabled does the jump guard apply, with estimates blended in
+ * through the pose estimator.
+ *
+ * <p>Feeding the drivetrain is gated behind {@code USE_VISION_ODOMETRY}. Everything is published
+ * regardless — including {@code Vision/WouldAccept} and {@code Vision/RejectReason} — so the
+ * camera can be verified before it is trusted.
  *
  * <p>Depends on the camera being named exactly {@code limelight-front} in its web UI. That string
  * is the NetworkTables table name; get it wrong and every read returns a default with no error.
@@ -38,6 +59,14 @@ import frc.robot.util.LimelightHelpers;
 public class Vision extends SubsystemBase {
   private final CommandSwerveDrivetrain drivetrain;
 
+  private static final Matrix<N3, N1> VISION_STD_DEVS =
+      VecBuilder.fill(VISION_XY_STD_DEV_METERS, VISION_XY_STD_DEV_METERS, VISION_HEADING_STD_DEV_RAD);
+
+  /** Vision estimate as a second robot on the existing "Pose" Field2d that Telemetry publishes. */
+  private final DoubleArrayPublisher fieldVisionPose =
+      NetworkTableInstance.getDefault().getTable("Pose").getDoubleArrayTopic("Vision").publish();
+
+  private boolean seeded = false;
   private int acceptedCount = 0;
   private int rejectedCount = 0;
 
@@ -61,64 +90,97 @@ public class Vision extends SubsystemBase {
     CameraServer.addCamera(new HttpCamera(CAMERA_NAME, CAMERA_STREAM_URL));
   }
 
+  /**
+   * Forget the current seed, so the next trustworthy estimate snaps the position again. Call when
+   * the heading is re-zeroed: every MegaTag2 position depends on the heading, so a heading change
+   * makes the old position disagree with new estimates by more than the jump guard allows.
+   */
+  public void requestReseed() {
+    seeded = false;
+  }
+
   @Override
   public void periodic() {
+    SwerveDriveState state = drivetrain.getState();
+
     // MegaTag2 needs the current heading before the estimate is read, every loop.
-    double yawDegrees = drivetrain.getState().Pose.getRotation().getDegrees();
-    LimelightHelpers.SetRobotOrientation(CAMERA_NAME, yawDegrees, 0, 0, 0, 0, 0);
+    LimelightHelpers.SetRobotOrientation(
+        CAMERA_NAME, state.Pose.getRotation().getDegrees(), 0, 0, 0, 0, 0);
 
     LimelightHelpers.PoseEstimate estimate =
         LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(CAMERA_NAME);
 
-    publishDiagnostics(estimate);
+    String rejectReason = rejectReason(estimate, state);
+    boolean wouldAccept = rejectReason.isEmpty();
 
-    if (USE_VISION_ODOMETRY && isTrustworthy(estimate)) {
-      drivetrain.addVisionMeasurement(estimate.pose, estimate.timestampSeconds);
+    if (wouldAccept && USE_VISION_ODOMETRY) {
+      if (!seeded || DriverStation.isDisabled()) {
+        // Heading is untouched: it comes from the gyro, and MegaTag2's heading is that same gyro.
+        drivetrain.resetTranslation(estimate.pose.getTranslation());
+        seeded = true;
+      } else {
+        drivetrain.addVisionMeasurement(estimate.pose, estimate.timestampSeconds, VISION_STD_DEVS);
+      }
       acceptedCount++;
-    } else if (estimate != null && estimate.tagCount > 0) {
+    } else if (!wouldAccept && estimate != null && estimate.tagCount > 0) {
       rejectedCount++;
     }
+
+    publishDiagnostics(estimate, wouldAccept, rejectReason);
   }
 
   /**
-   * Whether an estimate is worth believing.
+   * Why an estimate should not be believed, or an empty string if it should.
    *
-   * <p>Three independent reasons to reject: no tags at all, tags too far away to be precise, or a
-   * pose that disagrees with odometry by more than the robot could plausibly have moved. That
-   * last one is the important guard — it catches a tag misidentified across the field, which is
-   * the failure that throws a robot into a wall.
+   * <p>No tags, tags too far to be precise, spinning too fast, or — once seeded and driving — a
+   * pose that disagrees with odometry by more than the robot could plausibly have moved. That last
+   * one catches a tag misidentified across the field, the failure that throws a robot into a wall.
    */
-  private boolean isTrustworthy(LimelightHelpers.PoseEstimate estimate) {
+  private String rejectReason(LimelightHelpers.PoseEstimate estimate, SwerveDriveState state) {
     if (estimate == null || estimate.tagCount == 0) {
-      return false;
+      return "No tags";
     }
-
     if (estimate.avgTagDist > MAX_TAG_DISTANCE_METERS) {
-      return false;
+      return "Tag too far";
     }
-
-    double jump =
-        estimate.pose.getTranslation().getDistance(drivetrain.getState().Pose.getTranslation());
-
-    return jump <= MAX_POSE_JUMP_METERS;
+    if (Math.abs(Math.toDegrees(state.Speeds.omegaRadiansPerSecond)) > MAX_YAW_RATE_DEG_PER_SEC) {
+      return "Spinning too fast";
+    }
+    if (seeded && DriverStation.isEnabled()) {
+      double jump = estimate.pose.getTranslation().getDistance(state.Pose.getTranslation());
+      if (jump > MAX_POSE_JUMP_METERS) {
+        return "Jump from odometry too big";
+      }
+    }
+    return "";
   }
 
-  private void publishDiagnostics(LimelightHelpers.PoseEstimate estimate) {
+  private void publishDiagnostics(
+      LimelightHelpers.PoseEstimate estimate, boolean wouldAccept, String rejectReason) {
     SmartDashboard.putBoolean("Vision/HasTarget", hasTarget());
     SmartDashboard.putNumber("Vision/TagID", getTagId());
     SmartDashboard.putNumber("Vision/TX", LimelightHelpers.getTX(CAMERA_NAME));
     SmartDashboard.putNumber("Vision/TY", LimelightHelpers.getTY(CAMERA_NAME));
 
-    if (estimate != null) {
-      SmartDashboard.putNumber("Vision/TagCount", estimate.tagCount);
+    boolean hasEstimate = estimate != null && estimate.tagCount > 0;
+    SmartDashboard.putNumber("Vision/TagCount", estimate != null ? estimate.tagCount : 0);
+    if (hasEstimate) {
       SmartDashboard.putNumber("Vision/AvgTagDistance", estimate.avgTagDist);
       SmartDashboard.putNumber("Vision/EstimatedX", estimate.pose.getX());
       SmartDashboard.putNumber("Vision/EstimatedY", estimate.pose.getY());
       SmartDashboard.putNumber("Vision/EstimatedHeadingDeg", estimate.pose.getRotation().getDegrees());
+      fieldVisionPose.set(
+          new double[] {
+            estimate.pose.getX(), estimate.pose.getY(), estimate.pose.getRotation().getDegrees()
+          });
+    } else {
+      fieldVisionPose.set(new double[0]); // hides the vision robot on the Field widget
     }
 
-    // Watch these while calibrating. Rejections climbing with tags in view means the camera and
-    // the odometry disagree, which is usually the robot-to-camera transform in the web UI.
+    // WouldAccept/RejectReason work with odometry feeding off, so the guards can be checked first.
+    SmartDashboard.putBoolean("Vision/WouldAccept", wouldAccept);
+    SmartDashboard.putString("Vision/RejectReason", rejectReason);
+    SmartDashboard.putBoolean("Vision/Seeded", seeded);
     SmartDashboard.putBoolean("Vision/FeedingOdometry", USE_VISION_ODOMETRY);
     SmartDashboard.putNumber("Vision/Accepted", acceptedCount);
     SmartDashboard.putNumber("Vision/Rejected", rejectedCount);

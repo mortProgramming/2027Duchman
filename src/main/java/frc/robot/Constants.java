@@ -316,6 +316,25 @@ public final class Constants {
     /** Ignore tags further away than this, in meters. Distant single tags are noisy. */
     public static final double MAX_TAG_DISTANCE_METERS = 4.0;
 
+    /**
+     * Ignore vision while turning faster than this, in degrees per second. Motion blur plus the
+     * heading lag MegaTag2 depends on make fast-spin estimates unreliable. 360 is the value in
+     * Limelight's own MegaTag2 example.
+     */
+    public static final double MAX_YAW_RATE_DEG_PER_SEC = 360;
+
+    /**
+     * How much the pose estimator trusts a vision X/Y measurement, in meters (bigger = trusts it
+     * less). 0.7 is Limelight's MegaTag2 example value; tune after the pose checks pass.
+     */
+    public static final double VISION_XY_STD_DEV_METERS = 0.7;
+
+    /**
+     * Effectively "never correct heading from vision". MegaTag2's heading is just the gyro yaw we
+     * sent it, echoed back a frame late, so fusing it would only add lag. Limelight's value.
+     */
+    public static final double VISION_HEADING_STD_DEV_RAD = 9999999;
+
     // ---- Camera pose relative to robot center, pushed to the Limelight on every boot ----
     // Code is the source of truth, not the web UI: this camera has already come back from a loan
     // with its settings changed once, and anything stored only on the camera is lost on a reset.
@@ -330,7 +349,10 @@ public final class Constants {
     public static final double CAMERA_RIGHT_METERS = 0.062; // 2.4 in right of center
     public static final double CAMERA_UP_METERS = 0.229; // 9 in, floor to lens
     public static final double CAMERA_ROLL_DEG = 0;
-    /** Tilted 10 degrees up from facing forward. If tag distance error grows with range, flip it. */
+    /**
+     * Tilted 10 degrees up from facing forward. A wrong pitch shows up as field-pose error that
+     * grows with distance from the tag — not in the camera-to-tag distance, which ignores mounting.
+     */
     public static final double CAMERA_PITCH_DEG = 10;
     public static final double CAMERA_YAW_DEG = 0;
   }

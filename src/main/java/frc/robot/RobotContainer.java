@@ -124,8 +124,17 @@ public class RobotContainer {
   }
 
   private void configureDriverBindings() {
-    // R1 re-zeroes the field-centric heading.
-    driverController.R1().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+    // R1 re-zeroes the field-centric heading. Press it only with the robot facing straight away
+    // from your own driver station: vision (MegaTag2) takes this heading as the field heading.
+    // Vision re-seeds its position afterwards, because every MegaTag2 position depends on heading.
+    driverController
+        .R1()
+        .onTrue(
+            drivetrain.runOnce(
+                () -> {
+                  drivetrain.seedFieldCentric();
+                  vision.requestReseed();
+                }));
 
     driverController.cross().whileTrue(drivetrain.applyRequest(() -> brake));
     driverController

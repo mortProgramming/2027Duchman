@@ -78,6 +78,7 @@ public class Vision extends SubsystemBase {
   private StringArrayPublisher streamsPublisher;
   private StringPublisher modePublisher;
   private StringArrayPublisher modesPublisher;
+  private StringPublisher descriptionPublisher;
 
   private boolean seeded = false;
   private int acceptedCount = 0;
@@ -118,8 +119,10 @@ public class Vision extends SubsystemBase {
    * {@code limelight-front-rio}; the plain {@code limelight-front} entry is the Limelight's own
    * and only works on the radio.
    *
-   * <p>Elastic recognises a camera by the mode/modes/source/streams entries, so all four are
-   * published.
+   * <p>Elastic treats an entry as a camera only if it has mode, modes, source and streams AND
+   * either description or connected (elastic_dashboard networktables_tree_row.dart). Without the
+   * last one it drops in as a box of plain text fields instead of a video widget, so description
+   * is published too.
    *
    * <p>The relay only pulls frames from the Limelight while someone is watching: measured about
    * 18 fps over USB for about 10% of the rio's CPU, with no loop overruns.
@@ -137,6 +140,7 @@ public class Vision extends SubsystemBase {
     streamsPublisher = table.getStringArrayTopic("streams").publish();
     modePublisher = table.getStringTopic("mode").publish();
     modesPublisher = table.getStringArrayTopic("modes").publish();
+    descriptionPublisher = table.getStringTopic("description").publish();
 
     sourcePublisher.set("ip:" + CAMERA_STREAM_URL);
     streamsPublisher.set(
@@ -146,6 +150,7 @@ public class Vision extends SubsystemBase {
         });
     modePublisher.set("");
     modesPublisher.set(new String[0]);
+    descriptionPublisher.set("Limelight 4, direct or relayed through the rio");
   }
 
   /**

@@ -1,8 +1,10 @@
 package frc.robot.subsystems;
 
+import static frc.robot.Constants.VisionConstants.CAMERA_ELASTIC_NAME;
 import static frc.robot.Constants.VisionConstants.CAMERA_FORWARD_METERS;
 import static frc.robot.Constants.VisionConstants.CAMERA_NAME;
 import static frc.robot.Constants.VisionConstants.CAMERA_PITCH_DEG;
+import static frc.robot.Constants.VisionConstants.CAMERA_RELAY_PORT;
 import static frc.robot.Constants.VisionConstants.CAMERA_RIGHT_METERS;
 import static frc.robot.Constants.VisionConstants.CAMERA_ROLL_DEG;
 import static frc.robot.Constants.VisionConstants.CAMERA_STREAM_URL;
@@ -17,14 +19,17 @@ import static frc.robot.Constants.VisionConstants.VISION_XY_STD_DEV_METERS;
 
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
-import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.HttpCamera;
+import edu.wpi.first.cscore.MjpegServer;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.networktables.DoubleArrayPublisher;
+import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StringArrayPublisher;
+import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -66,6 +71,14 @@ public class Vision extends SubsystemBase {
   private final DoubleArrayPublisher fieldVisionPose =
       NetworkTableInstance.getDefault().getTable("Pose").getDoubleArrayTopic("Vision").publish();
 
+  // Camera relay and its Elastic entries. Held as fields so they live as long as the robot code.
+  private HttpCamera limelightCamera;
+  private MjpegServer limelightRelay;
+  private StringPublisher sourcePublisher;
+  private StringArrayPublisher streamsPublisher;
+  private StringPublisher modePublisher;
+  private StringArrayPublisher modesPublisher;
+
   private boolean seeded = false;
   private int acceptedCount = 0;
   private int rejectedCount = 0;
@@ -85,13 +98,54 @@ public class Vision extends SubsystemBase {
         CAMERA_PITCH_DEG,
         CAMERA_YAW_DEG);
 
-    // Publishes /CameraPublisher/limelight-front so Elastic lists it under Camera Stream, with two
-    // addresses: the Limelight directly, then a relay through the rio at
-    // http://172.22.11.2:1181/?action=stream (WPILib adds that USB-only address on a roboRIO).
-    // Elastic tries the next address after 5 s without video, so the stream shows whether the
-    // laptop is on the radio or only on the rio's USB cable. The relay only pulls frames from the
-    // Limelight while someone is watching it.
-    CameraServer.startAutomaticCapture(new HttpCamera(CAMERA_NAME, CAMERA_STREAM_URL));
+    publishCameraStream();
+  }
+
+  /**
+   * Makes the Limelight's video show in Elastic whether the laptop is on the radio or only on the
+   * rio's USB cable.
+   *
+   * <p>The rio relays the stream on port 1181, and the Elastic camera entry
+   * ({@code CAMERA_ELASTIC_NAME}) lists two addresses: the Limelight directly, then the relay over
+   * USB. Elastic moves to the next address when one fails, so on the radio it uses the camera
+   * directly and on USB it uses the relay.
+   *
+   * <p><b>Why not just "limelight-front":</b> the Limelight publishes its own
+   * /CameraPublisher/limelight-front entry (confirmed via NetworkTables' publisher list, Nov 2026),
+   * with only its direct address, and re-sends it every time it reconnects. Anything the robot
+   * publishes under that same name gets overwritten — which is why WPILib's own relay address
+   * never reached Elastic either. So ours uses a different name. In Elastic, pick
+   * {@code limelight-front-rio}; the plain {@code limelight-front} entry is the Limelight's own
+   * and only works on the radio.
+   *
+   * <p>Elastic recognises a camera by the mode/modes/source/streams entries, so all four are
+   * published.
+   *
+   * <p>The relay only pulls frames from the Limelight while someone is watching: measured about
+   * 18 fps over USB for about 10% of the rio's CPU, with no loop overruns.
+   */
+  private void publishCameraStream() {
+    limelightCamera = new HttpCamera(CAMERA_NAME, CAMERA_STREAM_URL);
+    limelightRelay = new MjpegServer("serve_" + CAMERA_NAME, CAMERA_RELAY_PORT);
+    limelightRelay.setSource(limelightCamera);
+
+    NetworkTable table =
+        NetworkTableInstance.getDefault()
+            .getTable("CameraPublisher")
+            .getSubTable(CAMERA_ELASTIC_NAME);
+    sourcePublisher = table.getStringTopic("source").publish();
+    streamsPublisher = table.getStringArrayTopic("streams").publish();
+    modePublisher = table.getStringTopic("mode").publish();
+    modesPublisher = table.getStringArrayTopic("modes").publish();
+
+    sourcePublisher.set("ip:" + CAMERA_STREAM_URL);
+    streamsPublisher.set(
+        new String[] {
+          "mjpg:" + CAMERA_STREAM_URL,
+          "mjpg:http://172.22.11.2:" + CAMERA_RELAY_PORT + "/?action=stream"
+        });
+    modePublisher.set("");
+    modesPublisher.set(new String[0]);
   }
 
   /**

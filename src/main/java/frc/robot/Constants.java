@@ -291,15 +291,29 @@ public final class Constants {
     public static final String CAMERA_NAME = "limelight-front";
 
     /**
-     * The Limelight's MJPEG video stream, registered with CameraServer so Elastic's Camera Stream
-     * widget can find it. The Limelight does not do this itself: it only publishes the URL as a
-     * plain string in SmartDashboard ({@code limelight-front_Stream}), which Elastic cannot play.
+     * The Limelight's MJPEG video stream. The Limelight publishes its own Elastic camera entry
+     * with only this address, which works only when the laptop is on the radio; {@code Vision}
+     * publishes a second entry ({@link #CAMERA_ELASTIC_NAME}) that also lists the rio relay.
      *
      * <p>Static IP rather than {@code limelight-front.local}: mDNS is unreliable on Windows driver
-     * station laptops. The laptop opens this URL itself, so it must be on the robot network
-     * (radio), not just the rio's USB link — over USB the widget stays blank.
+     * station laptops. A laptop on the radio opens this URL directly; a laptop on the rio's USB
+     * cable cannot reach it and uses the rio relay ({@link #CAMERA_RELAY_PORT}) instead.
      */
     public static final String CAMERA_STREAM_URL = "http://10.0.11.11:5800";
+
+    /**
+     * Port the rio relays the Limelight stream on, so Elastic can show it over the rio's USB cable
+     * (http://172.22.11.2:1181/?action=stream). 1181 is the first port WPILib's own camera
+     * servers use, and the range the FRC field network allows for camera streams.
+     */
+    public static final int CAMERA_RELAY_PORT = 1181;
+
+    /**
+     * Name of the camera entry the robot publishes for Elastic (under /CameraPublisher). Must NOT
+     * be {@link #CAMERA_NAME}: the Limelight publishes its own entry under that name and
+     * overwrites anything the robot puts there. Pick this one in Elastic.
+     */
+    public static final String CAMERA_ELASTIC_NAME = "limelight-front-rio";
 
     /**
      * Whether vision corrections are fed into the drivetrain pose estimator.

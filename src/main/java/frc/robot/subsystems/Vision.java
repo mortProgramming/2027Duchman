@@ -85,9 +85,13 @@ public class Vision extends SubsystemBase {
         CAMERA_PITCH_DEG,
         CAMERA_YAW_DEG);
 
-    // Publishes /CameraPublisher/limelight-front so Elastic lists it under Camera Stream. Nothing
-    // runs through the rio: Elastic connects to the camera directly at this URL.
-    CameraServer.addCamera(new HttpCamera(CAMERA_NAME, CAMERA_STREAM_URL));
+    // Publishes /CameraPublisher/limelight-front so Elastic lists it under Camera Stream, with two
+    // addresses: the Limelight directly, then a relay through the rio at
+    // http://172.22.11.2:1181/?action=stream (WPILib adds that USB-only address on a roboRIO).
+    // Elastic tries the next address after 5 s without video, so the stream shows whether the
+    // laptop is on the radio or only on the rio's USB cable. The relay only pulls frames from the
+    // Limelight while someone is watching it.
+    CameraServer.startAutomaticCapture(new HttpCamera(CAMERA_NAME, CAMERA_STREAM_URL));
   }
 
   /**

@@ -32,6 +32,8 @@ import edu.wpi.first.networktables.StringArrayPublisher;
 import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import frc.robot.util.LimelightHelpers;
@@ -71,6 +73,13 @@ public class Vision extends SubsystemBase {
   private final DoubleArrayPublisher fieldVisionPose =
       NetworkTableInstance.getDefault().getTable("Pose").getDoubleArrayTopic("Vision").publish();
 
+  /** Robot heading for MegaTag2: [yaw, yawRate, pitch, pitchRate, roll, rollRate], degrees. */
+  private final DoubleArrayPublisher robotOrientation =
+      NetworkTableInstance.getDefault()
+          .getTable(CAMERA_NAME)
+          .getDoubleArrayTopic("robot_orientation_set")
+          .publish();
+
   // Camera relay and its Elastic entries. Held as fields so they live as long as the robot code.
   private HttpCamera limelightCamera;
   private MjpegServer limelightRelay;
@@ -99,7 +108,16 @@ public class Vision extends SubsystemBase {
         CAMERA_PITCH_DEG,
         CAMERA_YAW_DEG);
 
+    // IMU mode 0 = EXTERNAL_ONLY: MegaTag2 uses the robot heading we send every loop. Set
+    // explicitly rather than trusting the camera's default — it has come back from a loan with its
+    // settings changed once already. (Nov 2026: the camera was using its own internal IMU yaw,
+    // drifting, while MegaTag2 returned all zeros.)
+    LimelightHelpers.SetIMUMode(CAMERA_NAME, 0);
+
     publishCameraStream();
+
+    // Shows as a button in Elastic (drag in SmartDashboard/Vision/Seed heading from tag).
+    SmartDashboard.putData("Vision/Seed heading from tag", seedHeadingFromTagCommand());
   }
 
   /**
@@ -162,13 +180,49 @@ public class Vision extends SubsystemBase {
     seeded = false;
   }
 
+  /**
+   * Bench-test only: set the robot heading to what MegaTag1 says it is, from the tag in view.
+   *
+   * <p>MegaTag2 needs a heading consistent with the field map: the camera has to be facing the
+   * front of the tag as the map places it. On a real field, R1 with the robot facing away from your
+   * driver station does that. On the bench, with a tag taped up somewhere that is not its field
+   * position, no real heading matches the map, so MegaTag2 returns nothing (all zeros, field
+   * centre in Elastic). MegaTag1 does not use the heading, so its yaw is consistent with the map
+   * by construction; copying it into the gyro lets MegaTag2 run.
+   *
+   * <p>Do not use on a real field: a single-tag MegaTag1 yaw can be ambiguous by a lot. Press R1
+   * there instead.
+   */
+  public Command seedHeadingFromTagCommand() {
+    return Commands.runOnce(
+            () -> {
+              LimelightHelpers.PoseEstimate mt1 =
+                  LimelightHelpers.getBotPoseEstimate_wpiBlue(CAMERA_NAME);
+              if (mt1 != null && mt1.tagCount > 0) {
+                drivetrain.resetRotation(mt1.pose.getRotation());
+                requestReseed();
+              }
+            })
+        .ignoringDisable(true)
+        .withName("Seed heading from tag (bench only)");
+  }
+
   @Override
   public void periodic() {
     SwerveDriveState state = drivetrain.getState();
 
-    // MegaTag2 needs the current heading before the estimate is read, every loop.
-    LimelightHelpers.SetRobotOrientation(
-        CAMERA_NAME, state.Pose.getRotation().getDegrees(), 0, 0, 0, 0, 0);
+    // MegaTag2 needs the current heading before the estimate is read, every loop. Same array as
+    // LimelightHelpers.SetRobotOrientation (yaw, yaw rate, pitch, pitch rate, roll, roll rate),
+    // but through our own typed publisher, then flushed so it goes out this loop.
+    double yawDegrees = state.Pose.getRotation().getDegrees();
+    robotOrientation.set(new double[] {yawDegrees, 0, 0, 0, 0, 0});
+    NetworkTableInstance.getDefault().flush();
+    SmartDashboard.putNumber("Vision/SentYawDeg", yawDegrees);
+    // The Limelight reports the yaw it is actually using as imu[0]. With IMU mode 0 this must match
+    // SentYawDeg; if it doesn't, the heading is not reaching the camera and MegaTag2 returns nothing.
+    double[] limelightImu = LimelightHelpers.getLimelightNTDoubleArray(CAMERA_NAME, "imu");
+    SmartDashboard.putNumber(
+        "Vision/LimelightYawDeg", limelightImu.length > 0 ? limelightImu[0] : Double.NaN);
 
     LimelightHelpers.PoseEstimate estimate =
         LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(CAMERA_NAME);

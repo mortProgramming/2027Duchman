@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
-import static frc.robot.Constants.VisionConstants.CAMERA_ELASTIC_NAME;
+import static frc.robot.Constants.VisionConstants.CAMERA_DIRECT_ELASTIC_NAME;
+import static frc.robot.Constants.VisionConstants.CAMERA_RIO_ELASTIC_NAME;
 import static frc.robot.Constants.VisionConstants.CAMERA_FORWARD_METERS;
 import static frc.robot.Constants.VisionConstants.CAMERA_NAME;
 import static frc.robot.Constants.VisionConstants.CAMERA_PITCH_DEG;
@@ -17,6 +18,9 @@ import static frc.robot.Constants.VisionConstants.USE_VISION_ODOMETRY;
 import static frc.robot.Constants.VisionConstants.VISION_HEADING_STD_DEV_RAD;
 import static frc.robot.Constants.VisionConstants.VISION_XY_STD_DEV_METERS;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
 import edu.wpi.first.cscore.HttpCamera;
@@ -28,6 +32,7 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.networktables.DoubleArrayPublisher;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.Publisher;
 import edu.wpi.first.networktables.StringArrayPublisher;
 import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -83,11 +88,7 @@ public class Vision extends SubsystemBase {
   // Camera relay and its Elastic entries. Held as fields so they live as long as the robot code.
   private HttpCamera limelightCamera;
   private MjpegServer limelightRelay;
-  private StringPublisher sourcePublisher;
-  private StringArrayPublisher streamsPublisher;
-  private StringPublisher modePublisher;
-  private StringArrayPublisher modesPublisher;
-  private StringPublisher descriptionPublisher;
+  private final List<Publisher> cameraEntryPublishers = new ArrayList<>();
 
   private boolean seeded = false;
   private int acceptedCount = 0;
@@ -124,18 +125,17 @@ public class Vision extends SubsystemBase {
    * Makes the Limelight's video show in Elastic whether the laptop is on the radio or only on the
    * rio's USB cable.
    *
-   * <p>The rio relays the stream on port 1181, and the Elastic camera entry
-   * ({@code CAMERA_ELASTIC_NAME}) lists two addresses: the Limelight directly, then the relay over
-   * USB. Elastic moves to the next address when one fails, so on the radio it uses the camera
-   * directly and on USB it uses the relay.
+   * <p>The rio relays the stream on port 1181. Two Elastic camera entries, one per route, so it is
+   * obvious which one is in use: <b>11</b> = normal (straight from the Limelight, 10.0.11.11,
+   * needs the laptop on the radio) and <b>12</b> = rio (relayed, 172.22.11.2, works over the rio's
+   * USB cable). An earlier version put both addresses in one entry and let Elastic fall back,
+   * which worked but made it unclear which feed was showing.
    *
-   * <p><b>Why not just "limelight-front":</b> the Limelight publishes its own
+   * <p><b>Why not "limelight-front":</b> the Limelight publishes its own
    * /CameraPublisher/limelight-front entry (confirmed via NetworkTables' publisher list, Nov 2026),
    * with only its direct address, and re-sends it every time it reconnects. Anything the robot
    * publishes under that same name gets overwritten — which is why WPILib's own relay address
-   * never reached Elastic either. So ours uses a different name. In Elastic, pick
-   * {@code limelight-front-rio}; the plain {@code limelight-front} entry is the Limelight's own
-   * and only works on the radio.
+   * never reached Elastic either. That entry still appears in Elastic; it is the same feed as 11.
    *
    * <p>Elastic treats an entry as a camera only if it has mode, modes, source and streams AND
    * either description or connected (elastic_dashboard networktables_tree_row.dart). Without the
@@ -150,25 +150,33 @@ public class Vision extends SubsystemBase {
     limelightRelay = new MjpegServer("serve_" + CAMERA_NAME, CAMERA_RELAY_PORT);
     limelightRelay.setSource(limelightCamera);
 
-    NetworkTable table =
-        NetworkTableInstance.getDefault()
-            .getTable("CameraPublisher")
-            .getSubTable(CAMERA_ELASTIC_NAME);
-    sourcePublisher = table.getStringTopic("source").publish();
-    streamsPublisher = table.getStringArrayTopic("streams").publish();
-    modePublisher = table.getStringTopic("mode").publish();
-    modesPublisher = table.getStringArrayTopic("modes").publish();
-    descriptionPublisher = table.getStringTopic("description").publish();
+    publishCameraEntry(
+        CAMERA_DIRECT_ELASTIC_NAME,
+        CAMERA_STREAM_URL,
+        "Limelight direct (10.0.11.11) - laptop must be on the radio");
+    publishCameraEntry(
+        CAMERA_RIO_ELASTIC_NAME,
+        "http://172.22.11.2:" + CAMERA_RELAY_PORT + "/?action=stream",
+        "Limelight relayed through the rio (172.22.11.2) - works over the rio USB cable");
+  }
 
-    sourcePublisher.set("ip:" + CAMERA_STREAM_URL);
-    streamsPublisher.set(
-        new String[] {
-          "mjpg:" + CAMERA_STREAM_URL,
-          "mjpg:http://172.22.11.2:" + CAMERA_RELAY_PORT + "/?action=stream"
-        });
-    modePublisher.set("");
-    modesPublisher.set(new String[0]);
-    descriptionPublisher.set("Limelight 4, direct or relayed through the rio");
+  /** One Elastic camera entry with a single stream address. */
+  private void publishCameraEntry(String name, String streamUrl, String description) {
+    NetworkTable table =
+        NetworkTableInstance.getDefault().getTable("CameraPublisher").getSubTable(name);
+    StringPublisher source = table.getStringTopic("source").publish();
+    StringArrayPublisher streams = table.getStringArrayTopic("streams").publish();
+    StringPublisher mode = table.getStringTopic("mode").publish();
+    StringArrayPublisher modes = table.getStringArrayTopic("modes").publish();
+    StringPublisher desc = table.getStringTopic("description").publish();
+
+    source.set("ip:" + streamUrl);
+    streams.set(new String[] {"mjpg:" + streamUrl});
+    mode.set("");
+    modes.set(new String[0]);
+    desc.set(description);
+
+    cameraEntryPublishers.addAll(List.of(source, streams, mode, modes, desc));
   }
 
   /**

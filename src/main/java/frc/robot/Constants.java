@@ -296,7 +296,8 @@ public final class Constants {
     /**
      * The Limelight's MJPEG video stream. The Limelight publishes its own Elastic camera entry
      * with only this address, which works only when the laptop is on the radio; {@code Vision}
-     * publishes a second entry ({@link #CAMERA_ELASTIC_NAME}) that also lists the rio relay.
+     * also publishes it as camera "11", and the rio relay as camera "12" (see
+     * {@link #CAMERA_DIRECT_ELASTIC_NAME}).
      *
      * <p>Static IP rather than {@code limelight-front.local}: mDNS is unreliable on Windows driver
      * station laptops. A laptop on the radio opens this URL directly; a laptop on the rio's USB
@@ -312,11 +313,21 @@ public final class Constants {
     public static final int CAMERA_RELAY_PORT = 1181;
 
     /**
-     * Name of the camera entry the robot publishes for Elastic (under /CameraPublisher). Must NOT
-     * be {@link #CAMERA_NAME}: the Limelight publishes its own entry under that name and
-     * overwrites anything the robot puts there. Pick this one in Elastic.
+     * Elastic camera entries the robot publishes (under /CameraPublisher), one per route:
+     *
+     * <ul>
+     *   <li><b>11</b> = normal: straight from the Limelight at 10.0.11.11:5800. Works when the
+     *       laptop is on the robot network (radio Wi-Fi, or Ethernet to the radio).
+     *   <li><b>12</b> = rio: relayed through the rio at 172.22.11.2:1181. Works when the laptop is
+     *       only on the rio's USB cable.
+     * </ul>
+     *
+     * Neither may be {@link #CAMERA_NAME}: the Limelight publishes its own entry under that name
+     * (direct address only) and overwrites anything the robot puts there.
      */
-    public static final String CAMERA_ELASTIC_NAME = "limelight-front-rio";
+    public static final String CAMERA_DIRECT_ELASTIC_NAME = "11";
+
+    public static final String CAMERA_RIO_ELASTIC_NAME = "12";
 
     /**
      * Whether vision corrections are fed into the drivetrain pose estimator.

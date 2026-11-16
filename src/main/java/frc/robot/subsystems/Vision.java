@@ -253,9 +253,24 @@ public class Vision extends SubsystemBase {
    * pose that disagrees with odometry by more than the robot could plausibly have moved. That last
    * one catches a tag misidentified across the field, the failure that throws a robot into a wall.
    */
+  /** The pose MegaTag2 reports when it could not solve: (0, 0) or the exact field centre. */
+  private static boolean isNoSolution(LimelightHelpers.PoseEstimate estimate) {
+    double x = estimate.pose.getX();
+    double y = estimate.pose.getY();
+    boolean origin = x == 0 && y == 0;
+    boolean fieldCentre = Math.abs(x - 8.7741252) < 1e-6 && Math.abs(y - 4.0259508) < 1e-6;
+    return origin || fieldCentre;
+  }
+
   private String rejectReason(LimelightHelpers.PoseEstimate estimate, SwerveDriveState state) {
     if (estimate == null || estimate.tagCount == 0) {
       return "No tags";
+    }
+    // MegaTag2 can see a tag and still fail to solve, while reporting tagCount 1. Limelight OS
+    // 2025.x reports that as the exact field centre; 2026.1+ reports (0, 0, 0). Accepting either
+    // would snap the robot to the middle or the corner of the field.
+    if (isNoSolution(estimate)) {
+      return "MegaTag2 found no solution";
     }
     if (estimate.avgTagDist > MAX_TAG_DISTANCE_METERS) {
       return "Tag too far";

@@ -41,6 +41,7 @@ import frc.robot.commands.MoveElevator;
 import frc.robot.commands.SetEndeffector;
 import frc.robot.commands.TeleopLights;
 import frc.robot.commands.TeleopSwerve;
+import frc.robot.commands.TeleopSwerve.SpeedLevel;
 import frc.robot.commands.VelocityAlgaeRoller;
 import frc.robot.commands.VelocityTikiTorchRoller;
 import frc.robot.generated.TunerConstants;
@@ -91,18 +92,21 @@ public class RobotContainer {
 
   /* Diagnostic requests, held rather than latched. */
   private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
-  private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
   private final SwerveRequest.Idle idle = new SwerveRequest.Idle();
+
+  /** Held so the speed-level buttons can change its speed without interrupting it. */
+  private final TeleopSwerve teleopSwerve;
 
   public RobotContainer() {
     // L1 held = robot-relative driving; released = field-relative.
-    drivetrain.setDefaultCommand(
+    teleopSwerve =
         new TeleopSwerve(
             drivetrain,
             () -> -driverController.getLeftY(),
             () -> -driverController.getLeftX(),
             () -> -driverController.getRightX(),
-            driverController.L1()));
+            driverController.L1());
+    drivetrain.setDefaultCommand(teleopSwerve);
 
     // Rollers idle to a light hold rather than zero, so a held game piece does not slip. The 2025
     // code did this with whileFalse(rest()) on every binding; a default command is the same
@@ -123,6 +127,12 @@ public class RobotContainer {
     SmartDashboard.putData("Auto Chooser", autoChooser);
   }
 
+  private Command setSpeedLevel(SpeedLevel level) {
+    return Commands.runOnce(() -> teleopSwerve.setSpeedLevel(level))
+        .ignoringDisable(true)
+        .withName("Speed " + level.name().toLowerCase());
+  }
+
   private void configureDriverBindings() {
     // R1 re-zeroes the field-centric heading. Press it only with the robot facing straight away
     // from your own driver station: vision (MegaTag2) takes this heading as the field heading.
@@ -137,14 +147,14 @@ public class RobotContainer {
                 }));
 
     driverController.cross().whileTrue(drivetrain.applyRequest(() -> brake));
-    driverController
-        .circle()
-        .whileTrue(
-            drivetrain.applyRequest(
-                () ->
-                    point.withModuleDirection(
-                        new Rotation2d(
-                            -driverController.getLeftY(), -driverController.getLeftX()))));
+
+    // Speed levels: Square = slow, Triangle = medium, Circle = fast. Starts slow every boot.
+    // Percentages are in DrivetrainConstants; the current level shows in Elastic as
+    // Drive/SpeedLevel. These require nothing, so pressing one changes speed mid-drive without
+    // interrupting driving. (Circle used to point the wheels, a CTRE template bring-up tool.)
+    driverController.square().onTrue(setSpeedLevel(SpeedLevel.SLOW));
+    driverController.triangle().onTrue(setSpeedLevel(SpeedLevel.MEDIUM));
+    driverController.circle().onTrue(setSpeedLevel(SpeedLevel.FAST));
 
     // Deep climb stays on the driver pad, as at Worlds. The person watching the cage runs it.
     driverController.povRight().onTrue(Climb.up(climber));

@@ -1,7 +1,10 @@
 package frc.robot.commands;
 
+import static frc.robot.Constants.DrivetrainConstants.FAST_SPEED_SCALE;
 import static frc.robot.Constants.DrivetrainConstants.MAX_ANGULAR_RAD_PER_SEC;
 import static frc.robot.Constants.DrivetrainConstants.MAX_SPEED_MPS;
+import static frc.robot.Constants.DrivetrainConstants.MEDIUM_SPEED_SCALE;
+import static frc.robot.Constants.DrivetrainConstants.SLOW_SPEED_SCALE;
 import static frc.robot.Constants.OperatorConstants.DRIVE_DEADBAND;
 
 import java.util.function.BooleanSupplier;
@@ -11,6 +14,7 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 
 import frc.robot.subsystems.CommandSwerveDrivetrain;
@@ -32,6 +36,19 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
  * right, whereas a velocity setpoint does.
  */
 public class TeleopSwerve extends Command {
+  /** Driver-selectable speed, a fraction of full speed applied to driving and turning. */
+  public enum SpeedLevel {
+    SLOW(SLOW_SPEED_SCALE),
+    MEDIUM(MEDIUM_SPEED_SCALE),
+    FAST(FAST_SPEED_SCALE);
+
+    public final double scale;
+
+    SpeedLevel(double scale) {
+      this.scale = scale;
+    }
+  }
+
   private final CommandSwerveDrivetrain drivetrain;
   private final DoubleSupplier translationX;
   private final DoubleSupplier translationY;
@@ -43,6 +60,9 @@ public class TeleopSwerve extends Command {
   private final SwerveRequest.RobotCentric robotCentric =
       new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
   private final SwerveRequest.Idle idle = new SwerveRequest.Idle();
+
+  // Starts slow every boot, so a fresh robot never comes up at full speed.
+  private SpeedLevel speedLevel = SpeedLevel.SLOW;
 
   public TeleopSwerve(
       CommandSwerveDrivetrain drivetrain,
@@ -56,15 +76,39 @@ public class TeleopSwerve extends Command {
     this.rotation = rotation;
     this.robotRelative = robotRelative;
     addRequirements(drivetrain);
+    publishSpeedLevel();
+  }
+
+  /**
+   * Change the driver speed level. Safe to call from a button binding that requires nothing: it
+   * only changes a field, so it does not interrupt this command or the drivetrain.
+   */
+  public void setSpeedLevel(SpeedLevel level) {
+    speedLevel = level;
+    publishSpeedLevel();
+  }
+
+  public SpeedLevel getSpeedLevel() {
+    return speedLevel;
+  }
+
+  private void publishSpeedLevel() {
+    SmartDashboard.putString("Drive/SpeedLevel", speedLevel.name());
+    SmartDashboard.putNumber("Drive/SpeedPercent", speedLevel.scale * 100);
   }
 
   @Override
   public void execute() {
+    double scale = speedLevel.scale;
     // WPILib convention: X is forward, Y is to the left.
-    double vx = MathUtil.applyDeadband(translationX.getAsDouble(), DRIVE_DEADBAND) * MAX_SPEED_MPS;
-    double vy = MathUtil.applyDeadband(translationY.getAsDouble(), DRIVE_DEADBAND) * MAX_SPEED_MPS;
+    double vx =
+        MathUtil.applyDeadband(translationX.getAsDouble(), DRIVE_DEADBAND) * MAX_SPEED_MPS * scale;
+    double vy =
+        MathUtil.applyDeadband(translationY.getAsDouble(), DRIVE_DEADBAND) * MAX_SPEED_MPS * scale;
     double omega =
-        MathUtil.applyDeadband(rotation.getAsDouble(), DRIVE_DEADBAND) * MAX_ANGULAR_RAD_PER_SEC;
+        MathUtil.applyDeadband(rotation.getAsDouble(), DRIVE_DEADBAND)
+            * MAX_ANGULAR_RAD_PER_SEC
+            * scale;
 
     if (robotRelative.getAsBoolean()) {
       drivetrain.setControl(

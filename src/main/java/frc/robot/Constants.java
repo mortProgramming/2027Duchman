@@ -38,17 +38,20 @@ public final class Constants {
     private DrivetrainConstants() {}
 
     /**
-     * Fraction of the robot's measured free speed available to the driver. Start tryouts well
-     * under 1.0 — this robot's real top speed is quick enough to hurt someone or a wall.
+     * Full translational speed, in m/s. Derived from {@code kSpeedAt12Volts} in TunerConstants
+     * (3.41 m/s, measured on this robot by Tuner X) rather than typed in again here. The driver
+     * never gets more than this times the current speed level.
      */
-    public static final double SPEED_SCALE = 0.6;
+    public static final double MAX_SPEED_MPS = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
 
-    /**
-     * Top translational speed, in m/s. Derived from {@code kSpeedAt12Volts} in TunerConstants
-     * (3.41 m/s, measured on this robot by Tuner X) rather than typed in again here.
-     */
-    public static final double MAX_SPEED_MPS =
-        TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * SPEED_SCALE;
+    // ---- Driver speed levels: fraction of full speed, applied to driving AND turning ----
+    // Chosen on the driver pad: Square = slow, Triangle = medium, Circle = fast. The robot starts in
+    // slow every boot. Same idea as the 2025 Worlds code, which had 0.15 / 0.3 / 0.5 / 1.0 on
+    // Cross / Circle / Square / Triangle and also scaled turning. Fast is genuinely fast: this
+    // robot's full speed is quick enough to hurt someone or a wall, so keep tryouts in slow.
+    public static final double SLOW_SPEED_SCALE = 0.15;
+    public static final double MEDIUM_SPEED_SCALE = 0.5;
+    public static final double FAST_SPEED_SCALE = 1.0;
 
     /** Top rotational speed, in rad/s. 0.75 rotations/sec is the CTRE generator's default. */
     public static final double MAX_ANGULAR_RAD_PER_SEC =

@@ -372,16 +372,22 @@ public final class Constants {
     // Measured 2026-11-03. Forward and right taken from the CAD low mount and confirmed by tape;
     // height and pitch measured directly. The CAD also contains a stale "Limelight Ear" at 29 in
     // that is not on the robot — do not use it.
-    // Note the CAD does not model the 10 degree tilt; every rotation in the assembly is axis-aligned.
+    // Note the CAD does not model the tilt; every rotation in the assembly is axis-aligned.
     public static final double CAMERA_FORWARD_METERS = 0.31; // 12.2 in ahead of center
     public static final double CAMERA_RIGHT_METERS = 0.062; // 2.4 in right of center
     public static final double CAMERA_UP_METERS = 0.229; // 9 in, floor to lens
     public static final double CAMERA_ROLL_DEG = 0;
     /**
-     * Tilted 10 degrees up from facing forward. A wrong pitch shows up as field-pose error that
-     * grows with distance from the tag — not in the camera-to-tag distance, which ignores mounting.
+     * Tilted 8 degrees up from facing forward. Measured 2026-11-16 by the Limelight 4's own IMU
+     * (web UI 3D view: pitch -8.04, roll -1.03, accelerometer -0.14 g / 1.01 g, which is the same
+     * 8 degrees), with the robot sitting level. The IMU reports "tilted up" as negative; this
+     * setting is positive for up. Replaces a by-eye 10 degrees. Roll (about 1 degree) is left at 0:
+     * too small to matter, and its sign mapping from the IMU is unconfirmed.
+     *
+     * <p>A wrong pitch shows up as field-pose error that grows with distance from the tag — not in
+     * the camera-to-tag distance, which ignores mounting.
      */
-    public static final double CAMERA_PITCH_DEG = 10;
+    public static final double CAMERA_PITCH_DEG = 8;
     public static final double CAMERA_YAW_DEG = 0;
   }
 

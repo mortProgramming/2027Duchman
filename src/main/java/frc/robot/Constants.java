@@ -332,11 +332,15 @@ public final class Constants {
     /**
      * Whether vision corrections are fed into the drivetrain pose estimator.
      *
-     * <p>Starts FALSE deliberately. A miscalibrated camera injecting poses will make a drivetrain
-     * that currently works start fighting itself, and that is a miserable thing to debug mid
-     * session. Verify the numbers on the dashboard first, then turn this on.
+     * <p>Turned on 2026-11-16 after the camera was verified on the robot: distance correct to about
+     * 1 cm, tilt measured by the camera's IMU (8 deg) and confirmed level by MegaTag1, and MegaTag2
+     * agreeing with MegaTag1 to about 9 cm on a bench tag that was 11 in higher than the map.
+     *
+     * <p>Nothing is applied until the heading has been set since boot (R1 on a field, or the bench
+     * "Seed heading from tag" button): see {@code Vision.headingSet}. If the robot starts fighting
+     * itself, set this back to false first and debug with the Vision/ dashboard values.
      */
-    public static final boolean USE_VISION_ODOMETRY = false;
+    public static final boolean USE_VISION_ODOMETRY = true;
 
     /** Reject estimates further than this from the current odometry pose, in meters. */
     public static final double MAX_POSE_JUMP_METERS = 1.0;

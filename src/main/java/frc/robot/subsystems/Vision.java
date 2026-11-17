@@ -91,6 +91,13 @@ public class Vision extends SubsystemBase {
   private final List<Publisher> cameraEntryPublishers = new ArrayList<>();
 
   private boolean seeded = false;
+
+  /**
+   * False from boot until someone sets the heading (R1, or the bench "Seed heading from tag"
+   * button). The gyro reads 0 at boot whichever way the robot faces, and MegaTag2 believes the
+   * heading it is given, so until then every vision position is wrong and must not move the robot.
+   */
+  private boolean headingSet = false;
   private int acceptedCount = 0;
   private int rejectedCount = 0;
 
@@ -186,6 +193,8 @@ public class Vision extends SubsystemBase {
    */
   public void requestReseed() {
     seeded = false;
+    // Every caller (R1, the bench seed button) has just set a deliberate heading.
+    headingSet = true;
   }
 
   /**
@@ -274,6 +283,9 @@ public class Vision extends SubsystemBase {
     if (estimate == null || estimate.tagCount == 0) {
       return "No tags";
     }
+    if (!headingSet) {
+      return "Heading not set - press R1 (field) or Seed heading from tag (bench)";
+    }
     // MegaTag2 can see a tag and still fail to solve, while reporting tagCount 1. Limelight OS
     // 2025.x reports that as the exact field centre; 2026.1+ reports (0, 0, 0). Accepting either
     // would snap the robot to the middle or the corner of the field.
@@ -321,6 +333,7 @@ public class Vision extends SubsystemBase {
     SmartDashboard.putBoolean("Vision/WouldAccept", wouldAccept);
     SmartDashboard.putString("Vision/RejectReason", rejectReason);
     SmartDashboard.putBoolean("Vision/Seeded", seeded);
+    SmartDashboard.putBoolean("Vision/HeadingSet", headingSet);
     SmartDashboard.putBoolean("Vision/FeedingOdometry", USE_VISION_ODOMETRY);
     SmartDashboard.putNumber("Vision/Accepted", acceptedCount);
     SmartDashboard.putNumber("Vision/Rejected", rejectedCount);

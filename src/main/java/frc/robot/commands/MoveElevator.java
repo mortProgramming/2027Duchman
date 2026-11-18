@@ -20,8 +20,9 @@ import frc.robot.subsystems.Elevator;
  * <p>The Worlds equivalent also called the PID controller and discarded the result; that dead call
  * is not reproduced here.
  *
- * <p><b>Nothing stops this at either end of travel.</b> The limit switches re-zero the height
- * tracking but do not cut the output. Keep a finger near disable.
+ * <p>The limit switches stop it at either end: Elevator.periodic cuts output in the direction of a
+ * pressed switch. If a switch is unplugged or broken, nothing stops it, so keep a finger near
+ * disable. Releasing the jog hands the elevator to its default command, which holds the height.
  */
 public class MoveElevator extends Command {
   private final Elevator elevator;

@@ -53,6 +53,13 @@ public final class Constants {
     public static final double MEDIUM_SPEED_SCALE = 0.5;
     public static final double FAST_SPEED_SCALE = 1.0;
 
+    // ---- Tipping guard: drive speed cap while the elevator is up ----
+    // Any speed level is capped at RAISED_ELEVATOR_SPEED_SCALE while the carriage is at or above
+    // RAISED_ELEVATOR_HEIGHT_INCHES. Asked for as "50% at L4" (Nov 2026). L4 is 68 in and barge
+    // 71.5 in; 60 in catches the last of the trip up to them, and leaves L3 (43.6 in) uncapped.
+    public static final double RAISED_ELEVATOR_HEIGHT_INCHES = 60;
+    public static final double RAISED_ELEVATOR_SPEED_SCALE = 0.5;
+
     /** Top rotational speed, in rad/s. 0.75 rotations/sec is the CTRE generator's default. */
     public static final double MAX_ANGULAR_RAD_PER_SEC =
         RotationsPerSecond.of(0.75).in(RadiansPerSecond);
@@ -171,6 +178,12 @@ public final class Constants {
     public static final double MIN_DEGREES = -40;
     public static final double MAX_DEGREES = 110;
 
+    /**
+     * Manual jog cap: full operator stick = this fraction of full power. Was uncapped (full stick =
+     * 100%, no travel limits), which could slam the arm into a hard stop. Nov 2026 review.
+     */
+    public static final double JOG_SCALE = 0.3;
+
   }
 
   /** Algae roller: NEO 550 on CAN 12. Percent output. REST_SPEED is a light hold, not zero. */
@@ -220,6 +233,9 @@ public final class Constants {
     // TODO verify against the physical stops before trusting these.
     public static final double MIN_DEGREES = -100;
     public static final double MAX_DEGREES = 75;
+
+    /** Manual jog cap: full operator stick = this fraction of full power. See the algae arm's. */
+    public static final double JOG_SCALE = 0.3;
 
   }
 

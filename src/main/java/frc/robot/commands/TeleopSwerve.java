@@ -4,6 +4,7 @@ import static frc.robot.Constants.DrivetrainConstants.FAST_SPEED_SCALE;
 import static frc.robot.Constants.DrivetrainConstants.MAX_ANGULAR_RAD_PER_SEC;
 import static frc.robot.Constants.DrivetrainConstants.MAX_SPEED_MPS;
 import static frc.robot.Constants.DrivetrainConstants.MEDIUM_SPEED_SCALE;
+import static frc.robot.Constants.DrivetrainConstants.RAISED_ELEVATOR_SPEED_SCALE;
 import static frc.robot.Constants.DrivetrainConstants.SLOW_SPEED_SCALE;
 import static frc.robot.Constants.OperatorConstants.DRIVE_DEADBAND;
 
@@ -54,6 +55,7 @@ public class TeleopSwerve extends Command {
   private final DoubleSupplier translationY;
   private final DoubleSupplier rotation;
   private final BooleanSupplier robotRelative;
+  private final BooleanSupplier elevatorRaised;
 
   private final SwerveRequest.FieldCentric fieldCentric =
       new SwerveRequest.FieldCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
@@ -69,12 +71,14 @@ public class TeleopSwerve extends Command {
       DoubleSupplier translationX,
       DoubleSupplier translationY,
       DoubleSupplier rotation,
-      BooleanSupplier robotRelative) {
+      BooleanSupplier robotRelative,
+      BooleanSupplier elevatorRaised) {
     this.drivetrain = drivetrain;
     this.translationX = translationX;
     this.translationY = translationY;
     this.rotation = rotation;
     this.robotRelative = robotRelative;
+    this.elevatorRaised = elevatorRaised;
     addRequirements(drivetrain);
     publishSpeedLevel();
   }
@@ -100,6 +104,13 @@ public class TeleopSwerve extends Command {
   @Override
   public void execute() {
     double scale = speedLevel.scale;
+    // Tipping guard: with the elevator up near L4 / barge, never more than the raised-elevator cap,
+    // whatever level the driver picked. Only ever lowers speed.
+    boolean capped = elevatorRaised.getAsBoolean() && scale > RAISED_ELEVATOR_SPEED_SCALE;
+    if (capped) {
+      scale = RAISED_ELEVATOR_SPEED_SCALE;
+    }
+    SmartDashboard.putBoolean("Drive/ElevatorSpeedCap", capped);
     // WPILib convention: X is forward, Y is to the left.
     double vx =
         MathUtil.applyDeadband(translationX.getAsDouble(), DRIVE_DEADBAND) * MAX_SPEED_MPS * scale;

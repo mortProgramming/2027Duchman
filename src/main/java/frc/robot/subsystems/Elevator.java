@@ -73,7 +73,17 @@ public class Elevator extends SubsystemBase {
 
   @Override
   public void periodic() {
-    motor.setVoltage(motorSpeed * ROBOT_VOLTAGE);
+    // The limit switches stop the motor driving further into either end (Nov 2026 review: before,
+    // they only re-zeroed the height, and barge's 71.5 in target sits above the 69.4 in upper
+    // switch, so the carriage kept pushing into the top). Negative output raises this carriage.
+    double output = motorSpeed;
+    if (getAtUpperLimitSwitch()) {
+      output = Math.max(output, POS_KG); // up no harder than the standing gravity bias
+    }
+    if (getAtLowerLimitSwitch()) {
+      output = Math.min(output, 0); // never drive down into the bottom
+    }
+    motor.setVoltage(output * ROBOT_VOLTAGE);
 
     elevatorPosition = calculateElevatorPosition();
 

@@ -1,5 +1,6 @@
 package frc.robot.commands;
 
+import static frc.robot.Constants.AlgaeArmConstants.JOG_SCALE;
 import static frc.robot.Constants.OperatorConstants.DRIVE_DEADBAND;
 
 import java.util.function.DoubleSupplier;
@@ -17,7 +18,8 @@ import frc.robot.subsystems.AlgaeArm;
  * command, independent of whether the closed loop is wired correctly.
  *
  * <p>Nothing stops this at the travel limits. {@link SetAlgaeArm} clamps its target, but a manual
- * jog is the operator driving the arm by hand — keep a finger near disable.
+ * jog is the operator driving the arm by hand — keep a finger near disable. Full stick is capped at
+ * JOG_SCALE of full power, and releasing the jog hands the arm to its hold-in-place default.
  */
 public class MoveAlgaeArm extends Command {
   private final AlgaeArm algaeArm;
@@ -37,7 +39,7 @@ public class MoveAlgaeArm extends Command {
 
   @Override
   public void execute() {
-    algaeArm.setArmSpeed(MathUtil.applyDeadband(speed.getAsDouble(), DRIVE_DEADBAND));
+    algaeArm.setArmSpeed(MathUtil.applyDeadband(speed.getAsDouble(), DRIVE_DEADBAND) * JOG_SCALE);
   }
 
   @Override

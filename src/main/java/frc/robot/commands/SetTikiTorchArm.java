@@ -10,8 +10,11 @@ import static frc.robot.Constants.TikiTorchArmConstants.L3_SCORE;
 import static frc.robot.Constants.TikiTorchArmConstants.L4_SCORE;
 import static frc.robot.Constants.TikiTorchArmConstants.REST;
 
+import java.util.Set;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 
 import frc.robot.subsystems.TikiTorchArm;
 
@@ -21,11 +24,27 @@ public class SetTikiTorchArm extends Command {
   private final double setpoint;
 
   public SetTikiTorchArm(TikiTorchArm tikiTorchArm, double setpoint) {
+    this(tikiTorchArm, setpoint, true);
+  }
+
+  private SetTikiTorchArm(TikiTorchArm tikiTorchArm, double setpoint, boolean clampToTravel) {
     this.tikiTorchArm = tikiTorchArm;
     // Clamped to the travel limits. See the note in SetAlgaeArm on why the target is clamped
     // rather than the motor output.
-    this.setpoint = MathUtil.clamp(setpoint, MIN_DEGREES, MAX_DEGREES);
+    this.setpoint =
+        clampToTravel ? MathUtil.clamp(setpoint, MIN_DEGREES, MAX_DEGREES) : setpoint;
     addRequirements(tikiTorchArm);
+  }
+
+  /**
+   * Holds the arm at whatever angle it is at when this starts. The arm's default command, so it is
+   * never left unpowered after a jog or a cancelled pose (Nov 2026 review). Not clamped: holding
+   * where the arm already is must never drive it somewhere else.
+   */
+  public static Command holdCurrentAngle(TikiTorchArm tikiTorchArm) {
+    return Commands.defer(
+        () -> new SetTikiTorchArm(tikiTorchArm, tikiTorchArm.getDegrees(), false),
+        Set.of(tikiTorchArm));
   }
 
   @Override

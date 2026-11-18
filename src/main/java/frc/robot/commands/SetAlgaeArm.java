@@ -8,8 +8,11 @@ import static frc.robot.Constants.AlgaeArmConstants.POP_INTAKE;
 import static frc.robot.Constants.AlgaeArmConstants.REEF_INTAKE;
 import static frc.robot.Constants.AlgaeArmConstants.REST;
 
+import java.util.Set;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 
 import frc.robot.subsystems.AlgaeArm;
 
@@ -24,12 +27,27 @@ public class SetAlgaeArm extends Command {
   private final double setpoint;
 
   public SetAlgaeArm(AlgaeArm algaeArm, double setpoint) {
+    this(algaeArm, setpoint, true);
+  }
+
+  private SetAlgaeArm(AlgaeArm algaeArm, double setpoint, boolean clampToTravel) {
     this.algaeArm = algaeArm;
     // Clamped to the travel limits so a bad setpoint cannot send the arm into a hard stop.
     // Clamping the TARGET rather than the motor output is deliberate: it can never trap the arm,
     // whereas an output limit with the sign guessed wrong could.
-    this.setpoint = MathUtil.clamp(setpoint, MIN_DEGREES, MAX_DEGREES);
+    this.setpoint =
+        clampToTravel ? MathUtil.clamp(setpoint, MIN_DEGREES, MAX_DEGREES) : setpoint;
     addRequirements(algaeArm);
+  }
+
+  /**
+   * Holds the arm at whatever angle it is at when this starts. The arm's default command, so it is
+   * never left unpowered after a jog or a cancelled pose (Nov 2026 review). Not clamped: holding
+   * where the arm already is must never drive it somewhere else.
+   */
+  public static Command holdCurrentAngle(AlgaeArm algaeArm) {
+    return Commands.defer(
+        () -> new SetAlgaeArm(algaeArm, algaeArm.getDegrees(), false), Set.of(algaeArm));
   }
 
   @Override

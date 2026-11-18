@@ -13,6 +13,7 @@ import static frc.robot.Constants.BLineConstants.TRANSLATION_KP;
 import static frc.robot.Constants.DrivetrainConstants.AUTO_CREEP_SPEED_MPS;
 import static frc.robot.Constants.DrivetrainConstants.AUTO_DRIVE_SECONDS;
 import static frc.robot.Constants.DrivetrainConstants.MAX_SPEED_MPS;
+import static frc.robot.Constants.DrivetrainConstants.RAISED_ELEVATOR_HEIGHT_INCHES;
 import static frc.robot.Constants.ElevatorConstants.JOG_SPEED;
 import static frc.robot.Constants.OperatorConstants.DRIVER_CONTROLLER_PORT;
 import static frc.robot.Constants.OperatorConstants.DRIVE_DEADBAND;
@@ -36,9 +37,12 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 import frc.robot.commands.MoveTikiTorchArm;
 import frc.robot.commands.Climb;
+import frc.robot.commands.Elevate;
 import frc.robot.commands.MoveAlgaeArm;
 import frc.robot.commands.MoveElevator;
+import frc.robot.commands.SetAlgaeArm;
 import frc.robot.commands.SetEndeffector;
+import frc.robot.commands.SetTikiTorchArm;
 import frc.robot.commands.TeleopLights;
 import frc.robot.commands.TeleopSwerve;
 import frc.robot.commands.TeleopSwerve.SpeedLevel;
@@ -105,8 +109,17 @@ public class RobotContainer {
             () -> -driverController.getLeftY(),
             () -> -driverController.getLeftX(),
             () -> -driverController.getRightX(),
-            driverController.L1());
+            driverController.L1(),
+            () -> elevator.getElevatorPositionInches() >= RAISED_ELEVATOR_HEIGHT_INCHES);
     drivetrain.setDefaultCommand(teleopSwerve);
+
+    // Hold-in-place defaults: whenever nothing else is driving the elevator or an arm (after a jog,
+    // or when a jog cancels a pose — a pose owns all three, so touching one cancels the lot), it
+    // holds wherever it is instead of going unpowered. Without these the elevator dropped and the
+    // arms drooped. New in Nov 2026; the Worlds code had no defaults here.
+    elevator.setDefaultCommand(Elevate.holdCurrentHeight(elevator));
+    algaeArm.setDefaultCommand(SetAlgaeArm.holdCurrentAngle(algaeArm));
+    tikiTorchArm.setDefaultCommand(SetTikiTorchArm.holdCurrentAngle(tikiTorchArm));
 
     // Rollers idle to a light hold rather than zero, so a held game piece does not slip. The 2025
     // code did this with whileFalse(rest()) on every binding; a default command is the same
@@ -260,7 +273,13 @@ public class RobotContainer {
   private Command driveForwardAuto() {
     SwerveRequest.RobotCentric forward = new SwerveRequest.RobotCentric();
     return Commands.sequence(
-        drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
+        // Re-zeroing the heading changes every MegaTag2 position, so vision must re-seed too.
+        // Without this, vision rejected every reading for the rest of the match as a jump.
+        drivetrain.runOnce(
+            () -> {
+              drivetrain.seedFieldCentric(Rotation2d.kZero);
+              vision.requestReseed();
+            }),
         drivetrain
             .applyRequest(
                 () ->

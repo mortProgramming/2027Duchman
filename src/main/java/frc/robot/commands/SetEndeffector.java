@@ -38,6 +38,10 @@ import frc.robot.subsystems.TikiTorchArm;
  * the elevator is travelling. Only then do the arms go to their real setpoints. That is what stops
  * the arms from colliding with the superstructure as the carriage passes. Do not flatten these
  * stages into one parallel group.
+ *
+ * <p>One deliberate change from Worlds: during the first 0.5 s stage the elevator is now held at
+ * its current height ({@link Elevate#holdCurrentHeight}). At Worlds nothing drove it in that stage,
+ * so the carriage fell and slammed the bottom before every pose.
  */
 public class SetEndeffector extends SequentialCommandGroup {
 
@@ -79,8 +83,14 @@ public class SetEndeffector extends SequentialCommandGroup {
             : new Elevate(elevator, elevatorPos, elevatorSpeed, elevatorAcceleration);
 
     addCommands(
+        // Stage 1: arms to clearance. The elevator is held where it already is, because this group
+        // owns the elevator and nothing else would be driving it: the Worlds code left it with only
+        // the small POS_KG bias here, so the carriage dropped for 0.5 s and slammed the bottom
+        // before every pose (reported on the robot, Nov 2026).
         new ParallelCommandGroup(
-                SetTikiTorchArm.algaeClear(tikiTorchArm), SetAlgaeArm.rest(algaeArm))
+                SetTikiTorchArm.algaeClear(tikiTorchArm),
+                SetAlgaeArm.rest(algaeArm),
+                Elevate.holdCurrentHeight(elevator))
             .withTimeout(0.5),
         new ParallelCommandGroup(
             elevate,

@@ -13,8 +13,11 @@ import static frc.robot.Constants.ElevatorConstants.POS_CONSTRAINTS;
 import static frc.robot.Constants.ElevatorConstants.POS_TELEOP_CONSTRAINTS;
 import static frc.robot.Constants.ElevatorConstants.REST_HEIGHT;
 
+import java.util.Set;
+
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 
 import frc.robot.subsystems.Elevator;
 
@@ -68,6 +71,15 @@ public class Elevate extends Command {
   @Override
   public void end(boolean interrupted) {
     elevator.setElevatorMotorPercent(0);
+  }
+
+  /**
+   * Holds the carriage at whatever height it is at when this starts. Used while the arms clear
+   * before a pose: without it the elevator is unpowered (just the POS_KG bias) and drops.
+   */
+  public static Command holdCurrentHeight(Elevator elevator) {
+    return Commands.defer(
+        () -> new Elevate(elevator, elevator.getElevatorPositionInches()), Set.of(elevator));
   }
 
   public static Command rest(Elevator elevator) {
